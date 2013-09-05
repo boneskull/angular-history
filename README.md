@@ -113,7 +113,8 @@ $scope.foos = [
   {id: 2, name: 'blinken'},
   {id: 3, name: 'nod'}
 ];
-History.deepWatch('f.name for f in foos', $scope, 'Foo with ID {{f.id}} changed to {{f.name}}');
+History.deepWatch('f.name for f in foos', $scope, 
+  'Foo with ID {{f.id}} changed to {{f.name}}');
 ```
 
 This works for objects as well:
