@@ -10,6 +10,11 @@ Installation
 bower install angular-history
 ```
 
+Requirements
+============
+
+- AngularJS 1.1.x (or wherever `$watchCollection()` shows up)
+
 Usage
 =====
 
