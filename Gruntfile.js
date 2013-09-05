@@ -18,14 +18,23 @@ module.exports = function (grunt) {
           base: '.'
         }
       }
+    },
+    bower: {
+      install: {
+        options: {
+          targetDir: './test/lib',
+          cleanup: true
+        }
+      }
     }
 
   });
 
   grunt.loadNpmTasks('grunt-contrib-qunit');
   grunt.loadNpmTasks('grunt-contrib-connect');
+  grunt.loadNpmTasks('grunt-bower-task');
 
-  grunt.registerTask('test', ['connect', 'qunit']);
+  grunt.registerTask('test', ['bower:install', 'connect', 'qunit']);
   grunt.registerTask('default', ['test']);
 
 };
