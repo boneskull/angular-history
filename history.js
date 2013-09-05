@@ -96,7 +96,6 @@
             // TODO convert types with __type__ if present
             pointers[id][exp] = history[id][exp].length - 1;
             if (pointers[id][exp] > 0) {
-              console.log('broadcasting');
               $rootScope.$broadcast('History.archived', {
                 expression: exp,
                 newValue: newVal,
@@ -106,8 +105,6 @@
               });
             }
           }
-
-
         };
       };
 
