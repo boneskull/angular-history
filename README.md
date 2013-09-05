@@ -126,7 +126,8 @@ $scope.foos = {
   '3': {name: 'fo'},
   '4': {name: 'fum'}
 };
-History.deepWatch('value.name for key, value in foos', $scope, 'Foo with ID {{key}} changed its name to {{value.name}}');
+History.deepWatch('value.name for key, value in foos', $scope, 
+  'Foo with ID {{key}} changed its name to {{value.name}}');
 ```
 
 (Or at least, I think it does.  As you can see, no unit tests yet.)
