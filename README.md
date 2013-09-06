@@ -81,13 +81,16 @@ This tells the history stack to update no more often than every 500ms. This valu
 Undoing/Redoing
 ---------------
 
-Once something is `watch()`ed, you can undo or redo changes to it, *if that expression is assignable*.  If you pass a function as the expression, you may not undo/redo, but you will still have access to the history stack.  Anyway, to undo, execute:
+Once something is `watch()`ed, you can undo or redo changes to it, *if that expression is assignable*.  If you
+pass a function as the expression, you may not undo/redo, but you will still have access to the history stack.  
+Anyway, to undo, execute:
 
 ```javascript
 History.undo('foo', $scope);
 ```
 
-The `$scope` will be updated with the most recent verision of the object.  You can `undo()` as many times as there are changes in the expression's value since you `watch()`ed it.
+The `$scope` will be updated with the most recent version of the object.  You can `undo()` as many times as 
+there are changes in the expression's value since you `watch()`ed it--this is an entire history stack.
 
 Furthermore, an event will be emitted.  The `$rootScope` will `$broadcast()` a `History.undone` event with the following information:
 
@@ -104,6 +107,8 @@ History.redo('foo', $scope);
 ```
 
 This only works if you have previously undone something, of course.  You can undo multiple times, then redo multiple times.  The event emitted after redo is `History.redone` and the information is the same.
+
+Use `History.canUndo(exp, scope)` and `History.canRedo(exp, scope)` if you need to know those things.
 
 Revert
 ------
