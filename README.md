@@ -74,7 +74,7 @@ Furthermore, an event will be emitted.  The `$rootScope` will `$broadcast()` a `
 - `expression`: The expression that was undone
 - `oldValue`: The value the expression was changed to
 - `newValue`: The value the expression was before this (maybe these names should switch?)
-- `description`: The optional `description` you may have passed when
+- `description`: The optional `description` you may have passed
 - `scope`: The scope passed to `undo()`
 
 Redoing is pretty much as you would expect:
@@ -131,7 +131,7 @@ $scope.foos = {
   '3': {name: 'fo'},
   '4': {name: 'fum'}
 };
-History.deepWatch('value.name for key, value in foos', $scope, 
+History.deepWatch('value.name for (key, value) in foos', $scope, 
   'Foo with ID {{key}} changed its name to {{value.name}}');
 ```
 
