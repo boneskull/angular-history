@@ -7,7 +7,8 @@ module.exports = function (grunt) {
         options: {
           urls: [
             'http://localhost:8000/test/test-history.html'
-          ]
+          ],
+          force: true
         }
       }
     },
@@ -26,6 +27,16 @@ module.exports = function (grunt) {
           cleanup: true
         }
       }
+    },
+    watch: {
+      scripts: {
+        files: [
+          'history.js',
+          'test/test-history.html',
+          'test/test-history.js'
+        ],
+        tasks: ['qunit']
+      }
     }
 
   });
@@ -33,8 +44,27 @@ module.exports = function (grunt) {
   grunt.loadNpmTasks('grunt-contrib-qunit');
   grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.loadNpmTasks('grunt-bower-task');
+  grunt.loadNpmTasks('grunt-contrib-watch');
 
-  grunt.registerTask('test', ['bower:install', 'connect', 'qunit']);
+  grunt.registerTask('test', ['bower:install', 'connect', 'qunit', 'watch']);
   grunt.registerTask('default', ['test']);
 
+  grunt.event.on('qunit.spawn', function (url) {
+    grunt.log.ok("Running test suite: " + url);
+  });
+
+  grunt.event.on('qunit.moduleStart', function (name) {
+    grunt.log.ok("Running module: " + name);
+  });
+
+  grunt.event.on('qunit.testStart', function (name) {
+    grunt.log.ok("Running test: " + name);
+  });
+
+  grunt.event.on('qunit.log',
+    function (result, actual, expected, message) {
+      if (!!result) {
+        grunt.log.ok(message);
+      }
+    });
 };
