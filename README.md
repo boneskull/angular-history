@@ -6,7 +6,7 @@ A history service for AngularJS.  Undo/redo, that sort of thing.  Has nothing to
 Current Version
 ===============
 ```
-0.4.0
+0.4.1
 ```
 
 Installation
