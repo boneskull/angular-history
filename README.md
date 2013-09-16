@@ -19,8 +19,8 @@ bower install angular-history
 Requirements
 ============
 
-- AngularJS 1.1.x (or wherever `$watchCollection()` shows up)
-- (optional) [ngLazyBind](https://github.com/Ticore/ngLazyBind)
+- AngularJS 1.0.8+
+- [ngLazyBind](https://github.com/Ticore/ngLazyBind) (optional)
 
 Running Tests
 -------------
