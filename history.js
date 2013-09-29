@@ -21,15 +21,100 @@
     angular.module('lazyBind', []).factory('$lazyBind', angular.noop);
   }
 
+
   angular.module('decipher.history', ['lazyBind']).service('History',
-    function ($parse, $rootScope, $interpolate, $lazyBind, $timeout, $log, $q) {
+    function ($parse, $rootScope, $interpolate, $lazyBind, $timeout, $log,
+      $injector) {
       var history = {},
         pointers = {},
         watches = {},
+        watchObjs = {},
         lazyWatches = {},
         descriptions = {},
-        deepWatchId = 0,
-        deferreds = {};
+        batching = false,
+        deepWatchId = 0;
+
+      var Watch = function Watch() {
+        this._changeHandlers = {};
+        this._undoHandlers = {};
+        this._rollbackHandlers = {};
+      };
+
+      Watch.prototype._addHandler =
+      function _addHandler(where, name, fn, resolve) {
+        if (!where || !name || !fn) {
+          throw 'invalid parameters to addChangeHandler()';
+        }
+        this[where][name] = {
+          fn: fn,
+          resolve: resolve
+        };
+      };
+
+      Watch.prototype._removeHandler = function (where, name) {
+        var ch;
+        if (!name) {
+          throw 'invalid parameters to removeChangeHandler()';
+        }
+        ch = this[where][name];
+        delete this[where][name];
+        return ch;
+      };
+
+      Watch.prototype.addChangeHandler =
+      function addChangeHandler(name, fn, resolve) {
+        this._addHandler('_changeHandlers', name, fn, resolve);
+      };
+
+      Watch.prototype.addUndoHandler =
+      function addUndoHandler(name, fn, resolve) {
+        this._addHandler('_undoHandlers', name, fn, resolve);
+      };
+
+      Watch.prototype.removeChangeHandler = function removeChangeHandler(name) {
+        return this._removeHandler('_changeHandlers', name);
+      };
+
+      Watch.prototype.removeUndoHandler = function removeUndoHandler(name) {
+        return this._removeHandler('_undoHandlers', name);
+      };
+
+      Watch.prototype.addRollbackHandler =
+      function addRollbackHandler(name, fn, resolve) {
+        this._addHandler('_rollbackHandlers', name, fn, resolve);
+      };
+
+      Watch.prototype.removeRollbackHandler =
+      function removeRollbackHandler(name) {
+        return this._removeHandler('_rollbackHandlers', name);
+      };
+
+      Watch.prototype._fireHandlers = function _fireHandlers(where, scope) {
+        angular.forEach(this[where], function (handler) {
+          var locals = {}, hasScope = angular.isDefined(scope);
+          angular.forEach(handler.resolve, function (value, key) {
+            if (hasScope) {
+              locals[key] = $parse(value)(scope);
+            } else {
+              locals[key] = value;
+            }
+          });
+          $injector.invoke(handler.fn, scope || this, locals);
+        });
+      };
+
+      Watch.prototype._fireChangeHandlers =
+      function _fireChangeHandlers(scope) {
+        this._fireHandlers('_changeHandlers', scope);
+      };
+
+      Watch.prototype._fireUndoHandlers = function _fireUndoHandlers(scope) {
+        this._fireHandlers('_undoHandlers', scope);
+      };
+
+      Watch.prototype._fireRollbackHandlers = function _fireRollbackHandlers() {
+        this._fireHandlers('_rollbackHandlers');
+      };
 
       /**
        * Evaluates an expression on the scope lazily.  That means it will return
@@ -68,6 +153,7 @@
        */
       this._archive = function (exp, id, locals, pass, description) {
         return function (newVal, oldVal) {
+          var watchId;
           if (description) {
             descriptions[id][exp] = $interpolate(description)(locals);
           }
@@ -92,6 +178,10 @@
           history[id][exp].push(angular.copy(newVal));
           pointers[id][exp] = history[id][exp].length - 1;
           if (pointers[id][exp] > 0) {
+            watchId = locals.$$deepWatchId ? locals.$parent.$id : locals.$id;
+            if (!batching && angular.isDefined(watchObjs[watchId][exp])) {
+              watchObjs[watchId][exp]._fireChangeHandlers(locals);
+            }
             $rootScope.$broadcast('History.archived', {
               expression: exp,
               newValue: newVal,
@@ -100,7 +190,6 @@
               locals: locals
             });
           }
-
         };
       };
 
@@ -179,7 +268,6 @@
       this.deepWatch =
       function deepWatch(exp, scope, description, lazyOptions) {
         var match,
-          targetFn,
           targetName,
           valueFn,
           keyName,
@@ -196,7 +284,6 @@
                           exp + '"');
         }
         targetName = match[1];
-//        targetFn = $parse(targetName);
         valueName = match[4] || match[2];
         valueFn = $parse(valueName);
         keyName = match[3];
@@ -247,7 +334,15 @@
           locals.$on('$destroy', function () {
             _clear(locals);
           });
+
         });
+
+        if (angular.isUndefined(watchObjs[scope.$id])) {
+          watchObjs[scope.$id] = {};
+        }
+        watchObjs[scope.$id][targetName] = new Watch();
+
+        return watchObjs[scope.$id][targetName];
       };
 
       this._clear = function _clear(scope, exps) {
@@ -343,6 +438,7 @@
         model = $parse(exp);
         oldValue = model(scope);
         model.assign(scope, stack[pointer]);
+        this._watch(exp, scope, true);
         return {
           oldValue: oldValue,
           newValue: model(scope)
@@ -363,7 +459,8 @@
           scopeHistory = history[id],
           stack,
           values,
-          pointer;
+          pointer,
+          watchId;
 
         if (angular.isUndefined(scopeHistory)) {
           throw 'could not find history for scope ' + id;
@@ -382,7 +479,9 @@
         }
         values = this._do(scope, exp, stack, pointer);
 
-        this._watch(exp, scope, true);
+        watchId = scope.$$deepWatchId ? scope.$parent.$id : scope.$id;
+        watchObjs[watchId][exp]._fireChangeHandlers(scope);
+        watchObjs[watchId][exp]._fireUndoHandlers(scope);
 
         $rootScope.$broadcast('History.undone', {
           expression: exp,
@@ -435,7 +534,8 @@
         var id = scope.$id,
           stack = history[id][exp],
           values,
-          pointer;
+          pointer,
+          watchId;
         if (angular.isUndefined(stack)) {
           throw 'could not find history in scope "' + id +
                 ' against expression "' + exp + '"';
@@ -448,7 +548,9 @@
         }
 
         values = this._do(scope, exp, stack, pointer);
-        this._watch(exp, scope, true);
+
+        watchId = scope.$$deepWatchId ? scope.$parent.$id : scope.$id;
+        watchObjs[watchId][exp]._fireChangeHandlers(scope);
 
         $rootScope.$broadcast('History.redone', {
           expression: exp,
@@ -498,7 +600,8 @@
         pointer = pointer || 0;
         var id = scope.$id,
           stack = history[id][exp],
-          values;
+          values,
+          watchId;
         if (angular.isUndefined(stack)) {
           $log.warn('nothing to revert');
           return;
@@ -508,7 +611,9 @@
         // wait; what is this?
         history[scope.$id][exp].splice();
         pointers[scope.$id][exp] = pointer;
-        this._watch(exp, scope, true);
+
+        watchId = scope.$$deepWatchId ? scope.$parent.$id : scope.$id;
+        watchObjs[watchId][exp]._fireChangeHandlers(scope);
 
         $rootScope.$broadcast('History.reverted', {
           expression: exp,
@@ -521,7 +626,9 @@
       };
 
       this.batch = function transaction(fn, scope, description) {
-        var _clear = this._clear, listener, child;
+        var _clear = this._clear,
+          listener,
+          child;
         if (!angular.isFunction(fn)) {
           throw 'transaction requires a function';
         }
@@ -532,10 +639,7 @@
         child = scope.$new();
         child.$on('$destroy', function () {
           _clear(child);
-          deferreds[child.$id].resolve();
-          delete deferreds[child.$id];
         });
-        deferreds[child.$id] = $q.defer();
 
         listener = scope.$on('History.archived', function (evt, data) {
           var deepChild,
@@ -565,23 +669,27 @@
         // since it's not clear when the watchers will get fired,
         // and we must ensure that any existing watchers on the archived
         // event can be skipped before the batchEnd occurs.
+        batching = true;
         $timeout(function () {
-          fn(scope);
+          fn(child);
           scope.$apply();
         }).then(function () {
             listener();
+            batching = false;
             $rootScope.$broadcast('History.batchEnded', {
               transaction: child,
               description: description
             });
           });
 
-        return deferreds[child.$id].promise;
+        watchObjs[child.$id] = new Watch();
+
+        return watchObjs[child.$id];
       };
 
       this.rollback = function rollback(t) {
 
-        var _do = this._do,
+        var _do = angular.bind(this, this._do),
           parent = t.$parent,
           packets = {},
           childHead,
@@ -658,9 +766,10 @@
           }
         }
 
+        watchObjs[t.$id]._fireRollbackHandlers();
+
         $rootScope.$broadcast('History.rolledback', packets);
 
-        deferreds[t.$id].reject();
       };
 
       // expose for debugging/testing
