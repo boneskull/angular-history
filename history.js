@@ -22,12 +22,14 @@
   }
 
   angular.module('decipher.history', ['lazyBind']).service('History',
-    function ($parse, $rootScope, $interpolate, $lazyBind, $timeout, $log) {
+    function ($parse, $rootScope, $interpolate, $lazyBind, $timeout, $log, $q) {
       var history = {},
         pointers = {},
         watches = {},
         lazyWatches = {},
-        descriptions = {};
+        descriptions = {},
+        deepWatchId = 0,
+        deferreds = {};
 
       /**
        * Evaluates an expression on the scope lazily.  That means it will return
@@ -88,9 +90,7 @@
           }
           history[id][exp].splice(pointers[id][exp] + 1);
           history[id][exp].push(angular.copy(newVal));
-          // TODO convert types with __type__ if present
           pointers[id][exp] = history[id][exp].length - 1;
-
           if (pointers[id][exp] > 0) {
             $rootScope.$broadcast('History.archived', {
               expression: exp,
@@ -142,8 +142,8 @@
             model = $parse(exp);
             model.assign(scope, model(scope));
           } catch (e) {
-            throw new Error('expression "' + exp +
-                            '" is not an assignable expression');
+            throw 'expression "' + exp +
+                  '" is not an assignable expression';
           }
 
           // blast any old watches
@@ -156,7 +156,7 @@
           }
           descriptions[id][exp] = $interpolate(description)(scope);
 
-          this._watch(exp, scope, lazyOptions);
+          this._watch(exp, scope, false, lazyOptions);
 
         }
       };
@@ -188,14 +188,15 @@
           value,
           valueName,
           valuesName,
-          that = this;
+          _clear = this._clear,
+          _archive = this._archive;
         description = description || '';
         if (!(match = exp.match(DEEPWATCH_EXP))) {
           throw new Error('expected expression in form of "_select_ for (_key_,)? _value_ in _collection_" but got "' +
                           exp + '"');
         }
         targetName = match[1];
-        targetFn = $parse(targetName);
+//        targetFn = $parse(targetName);
         valueName = match[4] || match[2];
         valueFn = $parse(valueName);
         keyName = match[3];
@@ -203,9 +204,16 @@
         valuesFn = $parse(valuesName);
         values = valuesFn(scope);
 
+        if (angular.isUndefined(scope.$$deepWatch)) {
+          scope.$$deepWatch = {};
+        }
+        scope.$$deepWatch[exp] = ++deepWatchId;
+
         angular.forEach(values, function (v, k) {
           var locals = scope.$new(),
             id = locals.$id;
+          locals.$$deepWatchId = scope.$$deepWatch[exp];
+          locals.$$deepWatchTargetName = targetName;
           locals[valueName] = v;
           if (keyName) {
             locals[keyName] = k;
@@ -224,19 +232,81 @@
           descriptions[id][exp] = $interpolate(description)(locals);
 
           if (angular.isObject(lazyOptions) && lazyBindFound) {
-            watches[id][targetName] = scope.$watch(lazyWatch(locals, targetName,
+            watches[id][targetName] =
+            locals.$watch(lazyWatch(locals, targetName,
               lazyOptions.timeout || 500),
-              that._archive(targetName, id, locals, false, description));
+              _archive(targetName, id, locals, false, description));
             lazyWatches[id][exp] = true;
           }
           else {
-            watches[id][targetName] = scope.$watch(
-              function (scope) {
-                return targetFn(scope, locals);
-              }, that._archive(targetName, id, locals, false, description));
+            watches[id][targetName] = locals.$watch(targetName,
+              _archive(targetName, id, locals, false, description));
             lazyWatches[id][exp] = false;
           }
+
+          locals.$on('$destroy', function () {
+            _clear(locals);
+          });
         });
+      };
+
+      this._clear = function _clear(scope, exps) {
+        var id = scope.$id,
+          i,
+          exp,
+          childHead,
+          nextSibling,
+          dwid;
+
+        function clear(id, exp) {
+          angular.forEach(watches[id], function (watch) {
+            if (angular.isFunction(watch)) {
+              watch();
+            }
+          });
+          if (angular.isDefined(watches[id]) &&
+              angular.isFunction(watches[id][exp])) {
+            watches[id][exp]();
+          }
+          if (angular.isDefined(watches[id])) {
+            delete watches[id][exp];
+          }
+          if (angular.isDefined(history[id])) {
+            delete history[id][exp];
+          }
+          if (angular.isDefined(pointers[id])) {
+            delete pointers[id][exp];
+          }
+          if (angular.isDefined(lazyWatches[id])) {
+            delete lazyWatches[id][exp];
+          }
+
+        }
+
+        exps = angular.isArray(exps) ? exps : Object.keys(watches[id]);
+
+        i = exps.length;
+        while (i--) {
+          exp = exps[i];
+          clear(id, exp);
+          if (angular.isDefined(scope.$$deepWatch)) {
+            // find children.
+            dwid = scope.$$deepWatch[exp];
+            childHead = scope.$$childHead;
+            if (childHead) {
+              if (childHead.$$deepWatchId === dwid) {
+                clear(childHead.$id, childHead.$$deepWatchTargetName);
+              }
+              nextSibling = childHead;
+              while (nextSibling = nextSibling.$$nextSibling) {
+                // I guess $$nextSibling is an infinite loop
+                if (nextSibling.$$deepWatchId === dwid) {
+                  clear(nextSibling.$id, childHead.$$deepWatchTargetName);
+                }
+              }
+            }
+          }
+        }
       };
 
 
@@ -246,22 +316,11 @@
        * @param scope Scope
        */
       this.forget = function forget(exps, scope) {
-        var i, id;
         scope = scope || $rootScope;
-        id = scope.$id;
         if (!angular.isArray(exps) && angular.isString(exps)) {
           exps = [exps];
         }
-        i = exps.length;
-        while (i--) {
-          if (angular.isDefined(watches[id][exps[i]])) {
-            watches[id][exps[i]]();
-          }
-          delete watches[id][exps[i]];
-          delete history[id][exps[i]];
-          delete pointers[id][exps[i]];
-          delete lazyWatches[id][exps[i]];
-        }
+        this._clear(scope, exps);
       };
 
       /**
@@ -277,7 +336,10 @@
         var model,
           oldValue,
           id = scope.$id;
-        watches[id][exp]();
+        if (angular.isFunction(watches[id][exp])) {
+          watches[id][exp]();
+          delete watches[id][exp];
+        }
         model = $parse(exp);
         oldValue = model(scope);
         model.assign(scope, stack[pointer]);
@@ -309,8 +371,8 @@
 
         stack = scopeHistory[exp];
         if (angular.isUndefined(stack)) {
-          throw new Error('could not find history in scope "' + id +
-                          ' against expression "' + exp + '"');
+          throw 'could not find history in scope "' + id +
+                ' against expression "' + exp + '"';
         }
         pointer = --pointers[id][exp];
         if (pointer < 0) {
@@ -319,12 +381,13 @@
           return;
         }
         values = this._do(scope, exp, stack, pointer);
+
         this._watch(exp, scope, true);
 
         $rootScope.$broadcast('History.undone', {
           expression: exp,
-          oldValue: angular.copy(values.newValue),
-          newValue: angular.copy(values.oldValue),
+          newValue: values.newValue,
+          oldValue: values.oldValue,
           description: descriptions[id][exp],
           scope: scope
         });
@@ -351,7 +414,7 @@
                               (lazyWatches[id] && !!lazyWatches[id][exp]))) {
           watches[id][exp] =
           scope.$watch(lazyWatch(scope, exp, lazyOptions.timeout),
-            this._archive(exp, id, scope, pass));
+            this._archive(exp, id, scope, pass), true);
           lazyWatches[id][exp] = true;
         }
         else {
@@ -374,8 +437,8 @@
           values,
           pointer;
         if (angular.isUndefined(stack)) {
-          throw new Error('could not find history in scope "' + id +
-                          ' against expression "' + exp + '"');
+          throw 'could not find history in scope "' + id +
+                ' against expression "' + exp + '"';
         }
         pointer = ++pointers[id][exp];
         if (pointer === stack.length) {
@@ -457,8 +520,8 @@
         });
       };
 
-      this.batch = function transaction(fn, scope) {
-        var child;
+      this.batch = function transaction(fn, scope, description) {
+        var _clear = this._clear, listener, child;
         if (!angular.isFunction(fn)) {
           throw 'transaction requires a function';
         }
@@ -468,59 +531,63 @@
 
         child = scope.$new();
         child.$on('$destroy', function () {
-
-          angular.forEach(watches[child.$id], function (watch) {
-            watch();
-          });
-          delete watches[child.$id];
-          delete history[child.$id];
-          delete pointers[child.$id];
-          delete watches[child.$id];
+          _clear(child);
+          deferreds[child.$id].resolve();
+          delete deferreds[child.$id];
         });
+        deferreds[child.$id] = $q.defer();
 
-        pointers[child.$id] = angular.copy(pointers[scope.$id]);
-        descriptions[child.$id] = angular.copy(descriptions[scope.$id]);
-        lazyWatches[child.$id] = angular.copy(lazyWatches[scope.$id]);
-        history[child.$id] = angular.copy(history[scope.$id]);
-        watches[child.$id] = angular.copy(watches[scope.$id]);
-
-        child.$on('History.archived', function (evt, data) {
+        listener = scope.$on('History.archived', function (evt, data) {
           var deepChild,
             exp = data.expression,
             id;
-          if (data.locals.$id !== child.$parent.$id) {
+          if (data.locals.$id !== child.$id) {
             deepChild = child.$new();
+            deepChild.$on('$destroy', function () {
+              _clear(deepChild);
+            });
             deepChild.$$locals = data.locals;
             id = deepChild.$id;
-            if (angular.isUndefined(history[id])) {
-              history[id] = {};
-            }
-            if (angular.isUndefined(pointers[id])) {
-              pointers[id] = {};
-            }
-
+            history[id] = {};
+            pointers[id] = {};
             history[id][exp] =
             angular.copy(history[data.locals.$id][exp]);
-            pointers[id][exp] =
-            angular.isUndefined(pointers[id][exp]) ? 0 :
-            pointers[id][exp] + 1;
+            pointers[id][exp] = pointers[data.locals.$id][exp] - 1;
           }
         });
 
-        fn(scope);
+        $rootScope.$broadcast('History.batchBegan', {
+          transaction: child,
+          description: description
+        });
 
-        return child;
+        // we need to put this into a timeout and apply manually
+        // since it's not clear when the watchers will get fired,
+        // and we must ensure that any existing watchers on the archived
+        // event can be skipped before the batchEnd occurs.
+        $timeout(function () {
+          fn(scope);
+          scope.$apply();
+        }).then(function () {
+            listener();
+            $rootScope.$broadcast('History.batchEnded', {
+              transaction: child,
+              description: description
+            });
+          });
+
+        return deferreds[child.$id].promise;
       };
 
       this.rollback = function rollback(t) {
-        var _undo = this._do,
-          $parent = t.$parent,
+
+        var _do = this._do,
+          parent = t.$parent,
           packets = {},
           childHead,
           childHeadLocals,
           nextSibling,
-          nextSiblingLocals,
-          lastSiblingId;
+          nextSiblingLocals;
         if (!t || !angular.isObject(t)) {
           throw 'must pass a transactional scope to rollback'
         }
@@ -532,17 +599,25 @@
             pointer,
             descs,
             exp,
-            exps = Object.keys(stack),
             values,
+            exps,
+            rolledback,
+            i;
+          if (stack) {
+            exps = Object.keys(stack);
             i = exps.length;
+          } else {
+            return;
+          }
           while (i--) {
             exp = exps[i];
             values = [];
             descs = [];
             pointer = pointers[comparisonScopeId][exp];
+            rolledback = false;
             while (pointer > pointers[id][exp]) {
               pointer--;
-              values.push(_undo(comparisonScope,
+              values.push(_do(comparisonScope,
                 exp, history[comparisonScopeId][exp], pointer));
               pointers[comparisonScopeId][exp] = pointer;
               descs.push(descriptions[comparisonScopeId][exp]);
@@ -551,39 +626,41 @@
               // do normal undo() calls later against the same
               // expression and scope
               history[comparisonScopeId][exp].pop();
+              rolledback = true;
             }
-            packets[exp] = {
-              values: values,
-              scope: scope,
-              comparisonScope: comparisonScope,
-              descriptions: descs
-            };
+            if (rolledback) {
+              packets[exp] = {
+                values: values,
+                scope: scope,
+                comparisonScope: comparisonScope,
+                descriptions: descs
+              };
+            }
           }
         }
 
-        _rollback(t, $parent);
-
+        if (angular.isDefined(parent) &&
+            angular.isDefined(history[parent.$id])) {
+          _rollback(t, parent);
+        }
         childHead = t.$$childHead;
         if (childHead) {
           childHeadLocals = childHead.$$locals;
           if (childHeadLocals) {
             _rollback(childHead, childHeadLocals);
           }
-
-          while (nextSibling = childHead.$$nextSibling) {
-            // I guess $$nextSibling is an infinite loop
-            if (lastSiblingId === nextSibling.$id) {
-              break;
-            }
+          nextSibling = childHead;
+          while (nextSibling = nextSibling.$$nextSibling) {
             nextSiblingLocals = nextSibling.$$locals;
             if (nextSiblingLocals) {
               _rollback(nextSibling, nextSiblingLocals);
             }
-            lastSiblingId = nextSibling.$id;
           }
         }
 
         $rootScope.$broadcast('History.rolledback', packets);
+
+        deferreds[t.$id].reject();
       };
 
       // expose for debugging/testing

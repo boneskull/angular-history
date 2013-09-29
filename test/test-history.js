@@ -16,8 +16,8 @@
       this.$rootScope = $injector.get('$rootScope');
       this.$log = $injector.get('$log');
       this.scope = this.$rootScope.$new();
-
-      this.sandbox = sinon.sandbox.create();
+      this.$timeout = $injector.get('$timeout');
+      this.sandbox = sinon.sandbox.create('history');
 
     },
     teardown: function () {
@@ -194,7 +194,7 @@
     scope.$apply(function () {
       History.redo('foo', scope);
     });
-    scope.$apply(function() {
+    scope.$apply(function () {
       History.revert('foo', scope);
     });
     Q.equal($broadcast.callCount, 6, '$broadcast happens on revert');
@@ -208,14 +208,14 @@
 
     scope.$apply('butts = "feet"');
     History.watch('butts', scope);
-    scope.$apply(function() {
+    scope.$apply(function () {
       History.revert('butts', scope);
     });
     Q.equal(warn.callCount, 3, 'warning is emitted if nothing to revert');
 
     scope.$apply('butts = "hands"');
     scope.$apply('butts = "legs"');
-    scope.$apply(function() {
+    scope.$apply(function () {
       History.revert('butts', scope, 1);
     });
 
@@ -353,7 +353,12 @@
     scope.$apply('pigs = "chickens"');
     scope.$apply('foo = [4,5,6]');
 
-    var t = History.batch(function (scope) {
+    var t;
+    scope.$on('History.batchEnded', function(evt, data) {
+      t = data.transaction;
+    });
+
+    History.batch(function (scope) {
       scope.$apply('foo[0] = 7');
       scope.$apply('foo[1] = 8');
       scope.$apply('foo[2] = 9');
@@ -362,6 +367,8 @@
       scope.$apply('bar = "spam"');
       scope.$apply('pigs = "cows"');
     }, scope);
+
+    this.$timeout.flush();
 
     Q.equal(scope.pigs, 'cows', 'pigs is now cows');
     Q.equal(scope.bar, 'spam', 'bar is now spam');

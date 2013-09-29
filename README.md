@@ -6,7 +6,7 @@ A history service for AngularJS.  Undo/redo, that sort of thing.  Has nothing to
 Current Version
 ===============
 ```
-0.4.1
+0.5.0
 ```
 
 Installation
@@ -38,8 +38,7 @@ grunt test
 ```
 
 to run the tests.  This will grab the test deps from bower, and run them against QUnit in a local server on 
-port 8000.  This grunt task uses a watch, so it'll wait for file updates; just ctrl-c out of it when you see
-"Waiting...".
+port 8000.
 
 Usage
 =====
