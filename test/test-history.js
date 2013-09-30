@@ -287,7 +287,6 @@
     });
     scope.$apply('data[1].name = "fred"');
 
-
     scope.data = [
       {id: 1, name: 'foo'},
       {id: 2, name: 'bar'},
@@ -319,10 +318,10 @@
   Q.test('batching', function () {
     var History = this.History,
       scope = this.scope;
-    Q.raises(History.transaction,
+    Q.raises(History.batch,
       'transaction fails when not passed a function');
     Q.raises(function () {
-      History.transaction(angular.noop);
+      History.batch(angular.noop);
     }, 'transaction fails when not passed a scope');
     scope.$apply('foo = [1,2,3]');
     scope.$apply('bar = "baz"');
@@ -358,7 +357,10 @@
       t = data.transaction;
     });
 
-    History.batch(function (scope) {
+    History.batch(function () {
+
+
+
       scope.$apply('foo[0] = 7');
       scope.$apply('foo[1] = 8');
       scope.$apply('foo[2] = 9');

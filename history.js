@@ -38,12 +38,14 @@
         this._changeHandlers = {};
         this._undoHandlers = {};
         this._rollbackHandlers = {};
+        this._redoHandlers = {};
+        this._revertHandlers = {};
       };
 
       Watch.prototype._addHandler =
       function _addHandler(where, name, fn, resolve) {
         if (!where || !name || !fn) {
-          throw 'invalid parameters to addChangeHandler()';
+          throw 'invalid parameters to _addHandler()';
         }
         this[where][name] = {
           fn: fn,
@@ -54,7 +56,7 @@
       Watch.prototype._removeHandler = function (where, name) {
         var ch;
         if (!name) {
-          throw 'invalid parameters to removeChangeHandler()';
+          throw 'invalid parameters to _removeHandler()';
         }
         ch = this[where][name];
         delete this[where][name];
@@ -71,6 +73,25 @@
         this._addHandler('_undoHandlers', name, fn, resolve);
       };
 
+      Watch.prototype.addRedoHandler =
+      function addRedoHandler(name, fn, resolve) {
+        this._addHandler('_redoHandlers', name, fn, resolve);
+      };
+
+      Watch.prototype.addRevertHandler =
+      function addRevertHandler(name, fn, resolve) {
+        this._addHandler('_revertHandlers', name, fn, resolve);
+      };
+
+      Watch.prototype.addRollbackHandler =
+      function addRollbackHandler(name, fn, resolve) {
+        this._addHandler('_rollbackHandlers', name, fn, resolve);
+      };
+
+      Watch.prototype.removeRevertHandler = function removeRevertHandler(name) {
+        return this._removeHandler('_revertHandlers', name);
+      };
+
       Watch.prototype.removeChangeHandler = function removeChangeHandler(name) {
         return this._removeHandler('_changeHandlers', name);
       };
@@ -79,19 +100,15 @@
         return this._removeHandler('_undoHandlers', name);
       };
 
-      Watch.prototype.addRollbackHandler =
-      function addRollbackHandler(name, fn, resolve) {
-        this._addHandler('_rollbackHandlers', name, fn, resolve);
-      };
-
       Watch.prototype.removeRollbackHandler =
       function removeRollbackHandler(name) {
         return this._removeHandler('_rollbackHandlers', name);
       };
 
       Watch.prototype._fireHandlers = function _fireHandlers(where, scope) {
+        var hasScope = angular.isDefined(scope);
         angular.forEach(this[where], function (handler) {
-          var locals = {}, hasScope = angular.isDefined(scope);
+          var locals = {};
           angular.forEach(handler.resolve, function (value, key) {
             if (hasScope) {
               locals[key] = $parse(value)(scope);
@@ -110,6 +127,15 @@
 
       Watch.prototype._fireUndoHandlers = function _fireUndoHandlers(scope) {
         this._fireHandlers('_undoHandlers', scope);
+      };
+
+      Watch.prototype._fireRedoHandlers = function _fireRedoHandlers(scope) {
+        this._fireHandlers('_redoHandlers', scope);
+      };
+
+      Watch.prototype._fireRevertHandlers =
+      function _fireRevertHandlers(scope) {
+        this._fireHandlers('_revertHandlers', scope);
       };
 
       Watch.prototype._fireRollbackHandlers = function _fireRollbackHandlers() {
@@ -179,7 +205,8 @@
           pointers[id][exp] = history[id][exp].length - 1;
           if (pointers[id][exp] > 0) {
             watchId = locals.$$deepWatchId ? locals.$parent.$id : locals.$id;
-            if (!batching && angular.isDefined(watchObjs[watchId][exp])) {
+            if (!batching && angular.isDefined(watchObjs[watchId]) &&
+                angular.isDefined(watchObjs[watchId][exp])) {
               watchObjs[watchId][exp]._fireChangeHandlers(locals);
             }
             $rootScope.$broadcast('History.archived', {
@@ -248,6 +275,10 @@
           this._watch(exp, scope, false, lazyOptions);
 
         }
+        if (angular.isUndefined(watchObjs[id])) {
+          watchObjs[id] = {};
+        }
+        return watchObjs[id][exp] = new Watch();
       };
 
       /**
@@ -340,9 +371,8 @@
         if (angular.isUndefined(watchObjs[scope.$id])) {
           watchObjs[scope.$id] = {};
         }
-        watchObjs[scope.$id][targetName] = new Watch();
 
-        return watchObjs[scope.$id][targetName];
+        return watchObjs[scope.$id][targetName] = new Watch();
       };
 
       this._clear = function _clear(scope, exps) {
@@ -480,8 +510,10 @@
         values = this._do(scope, exp, stack, pointer);
 
         watchId = scope.$$deepWatchId ? scope.$parent.$id : scope.$id;
-        watchObjs[watchId][exp]._fireChangeHandlers(scope);
-        watchObjs[watchId][exp]._fireUndoHandlers(scope);
+        if (angular.isDefined(watchObjs[watchId]) &&
+            angular.isDefined(watchObjs[watchId][exp])) {
+          watchObjs[watchId][exp]._fireUndoHandlers(scope);
+        }
 
         $rootScope.$broadcast('History.undone', {
           expression: exp,
@@ -550,7 +582,10 @@
         values = this._do(scope, exp, stack, pointer);
 
         watchId = scope.$$deepWatchId ? scope.$parent.$id : scope.$id;
-        watchObjs[watchId][exp]._fireChangeHandlers(scope);
+        if (angular.isDefined(watchObjs[watchId]) &&
+            angular.isDefined(watchObjs[watchId][exp])) {
+          watchObjs[watchId][exp]._fireRedoHandlers(scope);
+        }
 
         $rootScope.$broadcast('History.redone', {
           expression: exp,
@@ -613,7 +648,10 @@
         pointers[scope.$id][exp] = pointer;
 
         watchId = scope.$$deepWatchId ? scope.$parent.$id : scope.$id;
-        watchObjs[watchId][exp]._fireChangeHandlers(scope);
+        if (angular.isDefined(watchObjs[watchId]) &&
+            angular.isDefined(watchObjs[watchId][exp])) {
+          watchObjs[watchId][exp]._fireChangeHandlers(scope);
+        }
 
         $rootScope.$broadcast('History.reverted', {
           expression: exp,
@@ -625,7 +663,7 @@
         });
       };
 
-      this.batch = function transaction(fn, scope, description) {
+      this.batch = function batch(fn, scope, description) {
         var _clear = this._clear,
           listener,
           child;
@@ -682,9 +720,7 @@
             });
           });
 
-        watchObjs[child.$id] = new Watch();
-
-        return watchObjs[child.$id];
+        return watchObjs[child.$id] = new Watch();
       };
 
       this.rollback = function rollback(t) {
