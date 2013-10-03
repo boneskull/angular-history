@@ -18,6 +18,7 @@
     "tests",
     "Gruntfile.js",
     "package.json",
-    ".idea"
+    ".idea",
+    "docs"
   ]
 }
