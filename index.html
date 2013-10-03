@@ -1,0 +1,524 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>angular-history by boneskull</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/main.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+
+      <header>
+        <h1>angular-history</h1>
+        <p>A history service for AngularJS.  Undo/redo, that sort of thing.  Has nothing to do with the &quot;back&quot; button, unless you want it to.</p>
+      </header>
+
+      <div id="banner">
+        <span id="logo"></span>
+
+        <a href="https://github.com/boneskull/angular-history" class="button fork"><strong>View On GitHub</strong></a>
+        <div class="downloads">
+          <span>Downloads:</span>
+          <ul>
+            <li><a href="https://github.com/boneskull/angular-history/zipball/master" class="button">ZIP</a></li>
+            <li><a href="https://github.com/boneskull/angular-history/tarball/master" class="button">TAR</a></li>
+          </ul>
+        </div>
+      </div><!-- end banner -->
+
+    <div class="wrapper">
+      <nav>
+        <ul></ul>
+      </nav>
+      <section>
+        <h1>
+<a name="angular-history-" class="anchor" href="#angular-history-"><span class="octicon octicon-link"></span></a>angular-history <a href="https://travis-ci.org/decipherinc/angular-history"><img src="https://travis-ci.org/decipherinc/angular-history.png?branch=master" alt="Build Status"></a>
+</h1>
+
+<p>A history service for AngularJS.  Undo/redo, that sort of thing.  Has nothing to
+do with the "back" button, unless you want it to.</p>
+
+<h1>
+<a name="current-version" class="anchor" href="#current-version"><span class="octicon octicon-link"></span></a>Current Version</h1>
+
+<pre><code>0.5.0
+</code></pre>
+
+<p><em>Fair warning:</em> Until this project is at <code>1.0.0</code> the API is subject to change
+and will likely break.</p>
+
+<h1>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h1>
+
+<pre><code>bower install angular-history
+</code></pre>
+
+<h1>
+<a name="requirements" class="anchor" href="#requirements"><span class="octicon octicon-link"></span></a>Requirements</h1>
+
+<ul>
+<li>AngularJS 1.0.8+</li>
+<li>
+<a href="https://github.com/Ticore/ngLazyBind">ngLazyBind</a> (optional)</li>
+</ul><h2>
+<a name="running-tests" class="anchor" href="#running-tests"><span class="octicon octicon-link"></span></a>Running Tests</h2>
+
+<p>Clone this repo and execute:</p>
+
+<pre><code>npm install
+</code></pre>
+
+<p>to grab the dependencies.  Then execute:</p>
+
+<pre><code>grunt test
+</code></pre>
+
+<p>to run the tests.  This will grab the test deps from <a href="http://bower.io">bower</a>,
+and run them against <a href="http://qunitjs.com">QUnit</a> in a local server on port 8000.</p>
+
+<h1>
+<a name="api-documentation" class="anchor" href="#api-documentation"><span class="octicon octicon-link"></span></a>API Documentation</h1>
+
+<p>Forthcoming; this will link to <a href="http://decipherinc.github.io/angular-history/docs">http://decipherinc.github.io/angular-history/docs</a>
+I imagine.</p>
+
+<h1>
+<a name="demo" class="anchor" href="#demo"><span class="octicon octicon-link"></span></a>Demo</h1>
+
+<p>For now, in the <a href="http://decipherinc.github.io/angular-history/docs">API documentation</a>.</p>
+
+<h1>
+<a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h1>
+
+<p>First, include the <code>decipher.history</code> module in your application:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">angular</span><span class="p">.</span><span class="nx">module</span><span class="p">(</span><span class="s1">'myApp'</span><span class="p">,</span> <span class="p">[</span><span class="s1">'decipher.history'</span><span class="p">]);</span>
+</pre></div>
+
+<p>Next, you will want to inject the <code>History</code> service into your component:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">angular</span><span class="p">.</span><span class="nx">module</span><span class="p">(</span><span class="s1">'myApp'</span><span class="p">).</span><span class="nx">controller</span><span class="p">(</span><span class="s1">'MyCtrl'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">$scope</span><span class="p">,</span> <span class="nx">History</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+<span class="p">});</span>
+</pre></div>
+
+<p>Optionally, you can grab the <a href="https://github.com/Ticore/ngLazyBind">ngLazyBind</a>
+module if you want to support lazy binding.  This becomes useful if you have
+say, an <code>&lt;input type="text"&gt;</code> field, and you don't want every keystroke recorded
+in the history.  If this module is present, the <code>History</code> service will provide
+extra options.</p>
+
+<h2>
+<a name="watching-an-expression" class="anchor" href="#watching-an-expression"><span class="octicon octicon-link"></span></a>Watching an Expression</h2>
+
+<p>You will want to give the <code>History</code> service an expression to watch:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">angular</span><span class="p">.</span><span class="nx">module</span><span class="p">(</span><span class="s1">'myApp'</span><span class="p">).</span><span class="nx">controller</span><span class="p">(</span><span class="s1">'MyCtrl'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">$scope</span><span class="p">,</span> <span class="nx">History</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">$scope</span><span class="p">.</span><span class="nx">foo</span> <span class="o">=</span> <span class="s1">'bar'</span><span class="p">;</span>
+    <span class="nx">History</span><span class="p">.</span><span class="nx">watch</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">,</span> <span class="nx">$scope</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div>
+
+<p>An optional third parameter is the <code>description</code>, which will be emitted when an
+item is archived, undone, redone, or reverted, via a <code>$broadcast()</code>.   This
+allows you to attach to the event and do something with the info, such as pop up
+ an alert with an "undo" button in it.  This value is interpolated against the
+ passed <code>$scope</code> object.</p>
+
+<p>If you have the <code>ngLazyBind</code> module, you may provide a fourth parameter to
+<code>History.watch()</code>:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">History</span><span class="p">.</span><span class="nx">watch</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">,</span> <span class="nx">$scope</span><span class="p">,</span> <span class="s1">'Foo changed to {{foo}}'</span><span class="p">,</span> <span class="p">{</span><span class="nx">timeout</span><span class="o">:</span> <span class="mi">500</span><span class="p">});</span>
+</pre></div>
+
+<p>This tells the history stack to update no more often than every 500ms. This
+value defaults to 1s.  If you wish to use lazy binding with the default, then
+simply pass an empty object <code>{}</code> as the fourth parameter.  If you do not have
+the <code>ngLazyBind</code> module installed, this object will simply be ignored.</p>
+
+<h2>
+<a name="the-watch-object" class="anchor" href="#the-watch-object"><span class="octicon octicon-link"></span></a>The <code>Watch</code> Object</h2>
+
+<p>Whenever you issue one of the following commands, you will receive a <code>Watch</code>
+object:</p>
+
+<ul>
+<li><code>History.watch()</code></li>
+<li><code>History.deepWatch()</code></li>
+<li><code>History.batch()</code></li>
+</ul><p>This provides another layer of functionality on top of the events that the
+<code>History</code> service will broadcast.  You can use these <em>chainable</em> objects to run
+callbacks depending on the type of action that was taken:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="kd">var</span> <span class="nx">w</span> <span class="o">=</span> <span class="nx">History</span><span class="p">.</span><span class="nx">watch</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">)</span>
+  <span class="p">.</span><span class="nx">addChangeHandler</span><span class="p">(</span><span class="s1">'myChangeHandler'</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'foo got changed'</span><span class="p">);</span>
+  <span class="p">})</span>
+  <span class="p">.</span><span class="nx">addUndoHandler</span><span class="p">(</span><span class="s1">'myUndoHandler'</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'undid foo.  this message will self-destruct'</span><span class="p">);</span>
+    <span class="nx">w</span><span class="p">.</span><span class="nx">removeUndoHandler</span><span class="p">(</span><span class="s1">'myUndoHandler'</span><span class="p">);</span>
+  <span class="p">});</span>
+</pre></div>
+
+<p>The general recommendation is to listen for the global events if you want
+general functionality, and to use these <code>Watch</code> object callbacks for specific
+functionality.</p>
+
+<h2>
+<a name="undoingredoing" class="anchor" href="#undoingredoing"><span class="octicon octicon-link"></span></a>Undoing/Redoing</h2>
+
+<p>Once something is <code>watch()</code>ed, you can undo or redo changes to it, <em>if that
+expression is assignable</em>.  If you pass a function as the expression, you may
+<em>not</em> undo/redo, but you will still have access to the history stack.</p>
+
+<p>Anyway, to undo, execute:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">History</span><span class="p">.</span><span class="nx">undo</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">,</span> <span class="nx">$scope</span><span class="p">);</span>
+</pre></div>
+
+<p>The <code>$scope</code> will be updated with the most recent version of the object.  You
+can <code>undo()</code> as many times as there are changes in the expression's value since
+you <code>watch()</code>ed it--this is an entire history stack.</p>
+
+<p>Furthermore, an event will be emitted.  The <code>$rootScope</code> will <code>$broadcast()</code> a
+<code>History.undone</code> event with the following information:</p>
+
+<ul>
+<li>
+<code>expression</code>: The expression that was undone</li>
+<li>
+<code>oldValue</code>: The value the expression was changed from.  This is a copy!</li>
+<li>
+<code>newValue</code>: The value the expression was changed to</li>
+<li>
+<code>description</code>: The optional <code>description</code> you may have passed</li>
+<li>
+<code>scope</code>: The scope passed to <code>undo()</code>
+</li>
+</ul><p>Redoing is pretty much as you would expect:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">History</span><span class="p">.</span><span class="nx">redo</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">,</span> <span class="nx">$scope</span><span class="p">);</span>
+</pre></div>
+
+<p>This only works if you have previously undone something, of course.  You can
+undo multiple times, then redo multiple times.  The event emitted after redo is
+<code>History.redone</code> and the information is the same.</p>
+
+<p>Use <code>History.canUndo(exp, scope)</code> and <code>History.canRedo(exp, scope)</code> if you need
+to know those things.</p>
+
+<h2>
+<a name="revert" class="anchor" href="#revert"><span class="octicon octicon-link"></span></a>Revert</h2>
+
+<p>You can revert to the original value at the time of the <code>watch()</code> instruction by
+issuing:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">History</span><span class="p">.</span><span class="nx">revert</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">,</span> <span class="nx">$scope</span><span class="p">);</span>
+</pre></div>
+
+<p>If you are looking at <code>History.history</code> and know where in the stack you want to
+go, pass a third parameter and you will revert to a specific revision in the
+stack:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">History</span><span class="p">.</span><span class="nx">revert</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">,</span> <span class="nx">$scope</span><span class="p">,</span> <span class="mi">23</span><span class="p">);</span>
+</pre></div>
+
+<p>...which will revert directly to the 23rd revision, no questions asked.</p>
+
+<p>In addition, the <code>History.reverted</code> event will return to you the <code>pointer</code> that
+you passed it (which is <code>0</code> by default).</p>
+
+<h2>
+<a name="forgetting" class="anchor" href="#forgetting"><span class="octicon octicon-link"></span></a>Forgetting</h2>
+
+<p>If you want to stop watching an expression for changes, issue:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">History</span><span class="p">.</span><span class="nx">forget</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">,</span> <span class="nx">$scope</span><span class="p">);</span>
+</pre></div>
+
+<p>The history will be purged and the watch will be removed.</p>
+
+<h2>
+<a name="fanciness-deep-watching" class="anchor" href="#fanciness-deep-watching"><span class="octicon octicon-link"></span></a>Fanciness: Deep Watching</h2>
+
+<p>Maybe it could use a different name, but often situations arise where you want
+to watch an entire array of objects for a change in any of those objects'
+properties.  It would be incredibly inefficient to watch the entire array/object
+for changes, and you wouldn't necessarily know what property got updated.</p>
+
+<p>"Deep watch" like so:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">$scope</span><span class="p">.</span><span class="nx">foos</span> <span class="o">=</span> <span class="p">[</span>
+  <span class="p">{</span><span class="nx">id</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span> <span class="nx">name</span><span class="o">:</span> <span class="s1">'winken'</span><span class="p">},</span>
+  <span class="p">{</span><span class="nx">id</span><span class="o">:</span> <span class="mi">2</span><span class="p">,</span> <span class="nx">name</span><span class="o">:</span> <span class="s1">'blinken'</span><span class="p">},</span>
+  <span class="p">{</span><span class="nx">id</span><span class="o">:</span> <span class="mi">3</span><span class="p">,</span> <span class="nx">name</span><span class="o">:</span> <span class="s1">'nod'</span><span class="p">}</span>
+<span class="p">];</span>
+<span class="nx">History</span><span class="p">.</span><span class="nx">deepWatch</span><span class="p">(</span><span class="s1">'f.name for f in foos'</span><span class="p">,</span> <span class="nx">$scope</span><span class="p">,</span> 
+  <span class="s1">'Foo with ID {{f.id}} changed to {{f.name}}'</span><span class="p">);</span>
+</pre></div>
+
+<p>This works for objects as well:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">$scope</span><span class="p">.</span><span class="nx">foos</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="s1">'1'</span><span class="o">:</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'fe'</span><span class="p">},</span>
+  <span class="s1">'2'</span><span class="o">:</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'fi'</span><span class="p">},</span>
+  <span class="s1">'3'</span><span class="o">:</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'fo'</span><span class="p">},</span>
+  <span class="s1">'4'</span><span class="o">:</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s1">'fum'</span><span class="p">}</span>
+<span class="p">};</span>
+<span class="nx">History</span><span class="p">.</span><span class="nx">deepWatch</span><span class="p">(</span><span class="s1">'value.name for (key, value) in foos'</span><span class="p">,</span> <span class="nx">$scope</span><span class="p">,</span> 
+  <span class="s1">'Foo with ID {{key}} changed its name to {{value.name}}'</span><span class="p">);</span>
+</pre></div>
+
+<p>Now, whenever a name of any one of those things changes, history will be put on
+the stack.</p>
+
+<p>There are two ways to handle this.</p>
+
+<h3>
+<a name="listen-for-an-event" class="anchor" href="#listen-for-an-event"><span class="octicon octicon-link"></span></a>Listen for an event</h3>
+
+<p>The first is to listen for the <code>History.archived</code> event:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">History</span><span class="p">.</span><span class="nx">deepWatch</span><span class="p">(</span><span class="s1">'f.name for f in foos'</span><span class="p">,</span> <span class="nx">$scope</span><span class="p">,</span> 
+  <span class="s1">'Foo with ID {{f.id}} changed to {{f.name}}'</span><span class="p">);</span>
+
+<span class="nx">$scope</span><span class="p">.</span><span class="nx">$on</span><span class="p">(</span><span class="s1">'History.archived'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">evt</span><span class="p">,</span> <span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">$scope</span><span class="p">.</span><span class="nx">undo</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">History</span><span class="p">.</span><span class="nx">undo</span><span class="p">(</span><span class="nx">data</span><span class="p">.</span><span class="nx">expression</span><span class="p">,</span> <span class="nx">data</span><span class="p">.</span><span class="nx">locals</span><span class="p">);</span>
+  <span class="p">};</span>
+<span class="p">});</span>
+
+<span class="nx">$scope</span><span class="p">.</span><span class="nx">foos</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">name</span> <span class="o">=</span> <span class="s1">'fuh'</span><span class="p">;</span>
+
+</pre></div>
+
+<p>So you can bind to <code>undo()</code> in your view, and it will undo the change to
+<code>foos[0].name</code>.</p>
+
+<p><code>data</code>, as passed to the event handler, will look similar to the
+<code>History.undone</code> event as mentioned above:</p>
+
+<ul>
+<li>
+<code>expression</code>: The expression that got archived, local to <code>locals</code>
+</li>
+<li>
+<code>oldValue</code>: The value the expression was changed from.  This is a copy!</li>
+<li>
+<code>newValue</code>: The value the expression was changed to.</li>
+<li>
+<code>description</code>: The optional <code>description</code> you may have passed</li>
+<li>
+<code>locals</code>: A scope containing your expression's value.  For example, above we
+will have the object <code>f</code> available in <code>locals</code>, with a <code>name</code> property.</li>
+</ul><h3>
+<a name="use-a-handler" class="anchor" href="#use-a-handler"><span class="octicon octicon-link"></span></a>Use a handler</h3>
+
+<p>The second way is to use a handler built into a <code>Watch</code> object:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="kd">var</span> <span class="nx">w</span> <span class="o">=</span> <span class="nx">History</span><span class="p">.</span><span class="nx">deepWatch</span><span class="p">(</span><span class="s1">'f.name for f in foos'</span><span class="p">,</span> <span class="nx">$scope</span><span class="p">,</span>
+  <span class="s1">'Foo with ID {{f.id}} changed to {{f.name}}'</span><span class="p">);</span>
+
+<span class="nx">w</span><span class="p">.</span><span class="nx">addChangeHandler</span><span class="p">(</span><span class="s1">'myChangeHandler'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">$expression</span><span class="p">,</span> <span class="nx">$locals</span><span class="p">,</span> <span class="nx">foo</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">$scope</span><span class="p">.</span><span class="nx">undo</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'undoing foo with name "'</span> <span class="o">+</span> <span class="nx">foo</span><span class="p">.</span><span class="nx">name</span> <span class="o">+</span> <span class="s1">'"'</span><span class="p">);</span>
+    <span class="nx">History</span><span class="p">.</span><span class="nx">undo</span><span class="p">(</span><span class="nx">$expression</span><span class="p">,</span> <span class="nx">$locals</span><span class="p">);</span>
+  <span class="p">});</span>
+<span class="p">},</span> <span class="p">{</span><span class="nx">foo</span><span class="o">:</span> <span class="s1">'f'</span><span class="p">});</span>
+
+<span class="nx">$scope</span><span class="p">.</span><span class="nx">foos</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">name</span> <span class="o">=</span> <span class="s1">'fuh'</span><span class="p">;</span>
+
+</pre></div>
+
+<p>There are two special injections into your change/undo/redo/etc. handlers:</p>
+
+<ul>
+<li>
+<code>$expression</code> The expression that changed.  This may be simple, like <code>foo</code>,
+or complex like <code>f.name</code> if you have used a deep watch.</li>
+<li>
+<code>$locals</code> The scope against which the change was made.  If this is simple,
+like in the case of a <code>History.watch()</code>, you probably don't need it.  But if
+you are doing a deep watch, then you will want to use this, because it does not
+represent the scope you originally started with!</li>
+</ul><p><code>$expression</code> is not available in rollback handlers (discussed later).</p>
+
+<h2>
+<a name="otherworldly-fanciness-batching" class="anchor" href="#otherworldly-fanciness-batching"><span class="octicon octicon-link"></span></a>Otherworldly Fanciness: Batching</h2>
+
+<p>You can group a bunch of changes together and undo them all at once.  Note that
+currently you must actually be watching the changed variables in some manner;
+you must use <code>watch()</code> or <code>deepWatch()</code> first, then issue the batch.</p>
+
+<div class="highlight highlight-javascript"><pre><span class="c1">// setup some data</span>
+<span class="nx">scope</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="s1">'foo = [1,2,3]'</span><span class="p">);</span>
+<span class="nx">scope</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="s1">'bar = "baz"'</span><span class="p">);</span>
+<span class="nx">scope</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
+  <span class="nx">scope</span><span class="p">.</span><span class="nx">data</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="nx">id</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span> <span class="nx">name</span><span class="o">:</span> <span class="s1">'foo'</span><span class="p">},</span>
+    <span class="p">{</span><span class="nx">id</span><span class="o">:</span> <span class="mi">2</span><span class="p">,</span> <span class="nx">name</span><span class="o">:</span> <span class="s1">'bar'</span><span class="p">},</span>
+    <span class="p">{</span><span class="nx">id</span><span class="o">:</span> <span class="mi">3</span><span class="p">,</span> <span class="nx">name</span><span class="o">:</span> <span class="s1">'baz'</span><span class="p">}</span>
+  <span class="p">];</span>
+  <span class="nx">scope</span><span class="p">.</span><span class="nx">otherdata</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">1</span><span class="o">:</span> <span class="p">{</span>
+      <span class="nx">name</span><span class="o">:</span> <span class="s1">'foo'</span>
+    <span class="p">},</span>
+    <span class="mi">2</span><span class="o">:</span> <span class="p">{</span>
+      <span class="nx">name</span><span class="o">:</span> <span class="s1">'bar'</span>
+    <span class="p">},</span>
+    <span class="mi">3</span><span class="o">:</span> <span class="p">{</span>
+      <span class="nx">name</span><span class="o">:</span> <span class="s1">'baz'</span>
+    <span class="p">}</span>
+  <span class="p">};</span>
+<span class="p">});</span>
+
+<span class="c1">// watch some of these things through various means</span>
+<span class="nx">History</span><span class="p">.</span><span class="nx">watch</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">,</span> <span class="nx">scope</span><span class="p">,</span> <span class="s1">'foo array changed'</span><span class="p">);</span>
+<span class="nx">History</span><span class="p">.</span><span class="nx">watch</span><span class="p">(</span><span class="s1">'bar'</span><span class="p">,</span> <span class="nx">scope</span><span class="p">,</span> <span class="s1">'bar string changed'</span><span class="p">);</span>
+<span class="nx">History</span><span class="p">.</span><span class="nx">deepWatch</span><span class="p">(</span><span class="s1">'d.name for d in data'</span><span class="p">,</span> <span class="nx">scope</span><span class="p">,</span> <span class="s1">'name in data changed'</span><span class="p">);</span>
+<span class="nx">History</span><span class="p">.</span><span class="nx">deepWatch</span><span class="p">(</span><span class="s1">'od.name for (key, od) in otherdata'</span><span class="p">,</span> <span class="nx">scope</span><span class="p">,</span>
+  <span class="s1">'name in otherdata changed'</span><span class="p">);</span>
+
+<span class="c1">// change some things outright</span>
+<span class="nx">scope</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="s1">'pigs = "chickens"'</span><span class="p">);</span>
+<span class="nx">scope</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="s1">'foo = [4,5,6]'</span><span class="p">);</span>
+</pre></div>
+
+<p>Next we'll initiate a batch.  You will receive a special new scope within your
+<code>Watch</code> object that you can then pass to <code>History.rollback()</code>, which will roll
+back all changes made within the batch closure.  See below.</p>
+
+<p>The function you pass to <code>History.batch()</code> will accept a scope parameter, and
+that is actually a child scope of the real scope.  Changes are made here and
+propagated to the parent's history.</p>
+
+<p>Note the second parameter, which is optional and defaults to <code>$rootScope</code>,
+just like the other functions in the API.</p>
+
+<div class="highlight highlight-javascript"><pre><span class="kd">var</span> <span class="nx">w</span> <span class="o">=</span> <span class="nx">History</span><span class="p">.</span><span class="nx">batch</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">child</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">child</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="s1">'foo[0] = 7'</span><span class="p">);</span>
+  <span class="nx">child</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="s1">'foo[1] = 8'</span><span class="p">);</span>
+  <span class="nx">child</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="s1">'foo[2] = 9'</span><span class="p">);</span> <span class="c1">// 3 changes to "foo"</span>
+  <span class="nx">child</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="s1">'data[0].name = "marvin"'</span><span class="p">);</span> <span class="c1">// one change to the "data" array</span>
+  <span class="nx">child</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="s1">'otherdata[1].name = "pookie"'</span><span class="p">);</span> <span class="c1">// one change to the "otherdata" array</span>
+  <span class="nx">child</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="s1">'bar = "spam"'</span><span class="p">);</span> <span class="c1">// change to a string</span>
+  <span class="nx">child</span><span class="p">.</span><span class="nx">$apply</span><span class="p">(</span><span class="s1">'pigs = "cows"'</span><span class="p">);</span> <span class="c1">// change to something *not* watched</span>
+<span class="p">},</span> <span class="nx">scope</span><span class="p">);</span>
+</pre></div>
+
+<p><em>You do not have to use the <code>child</code> variable unless you want to</em>.  It's
+perfectly legit, if you are in a digest loop already, to just make assignments.
+The following is equivalent, again, if you are already in a digest (if you are
+using this code in a controller, you are likely in a digest; if you're using
+it in a directive, you may or may not be depending on what you're up to):</p>
+
+<div class="highlight highlight-javascript"><pre><span class="kd">var</span> <span class="nx">w</span> <span class="o">=</span> <span class="nx">History</span><span class="p">.</span><span class="nx">batch</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">child</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">scope</span><span class="p">.</span><span class="nx">foo</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">7</span><span class="p">;</span>
+  <span class="nx">scope</span><span class="p">.</span><span class="nx">foo</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">8</span><span class="p">;</span>
+  <span class="nx">scope</span><span class="p">.</span><span class="nx">foo</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">9</span><span class="p">;</span>
+  <span class="nx">scope</span><span class="p">.</span><span class="nx">data</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">name</span> <span class="o">=</span> <span class="s2">"marvin"</span><span class="p">;</span>
+  <span class="nx">scope</span><span class="p">.</span><span class="nx">otherdata</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="nx">name</span> <span class="o">=</span> <span class="s2">"pookie"</span><span class="p">;</span>
+  <span class="nx">scope</span><span class="p">.</span><span class="nx">bar</span> <span class="o">=</span> <span class="s2">"spam"</span><span class="p">;</span>
+  <span class="nx">scope</span><span class="p">.</span><span class="nx">pigs</span> <span class="o">=</span> <span class="s2">"cows"</span><span class="p">;</span>
+<span class="p">},</span> <span class="nx">scope</span><span class="p">);</span>
+</pre></div>
+
+<p>Let's make sure to notify our lovely <code>console</code> that a rollback happened:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">w</span><span class="p">.</span><span class="nx">addRollbackHandler</span><span class="p">(</span><span class="s1">'myRollbackHandler'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">$locals</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// $locals is the same as the "transaction" property of the watch object "w"</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'a rollback happened against scope '</span> <span class="o">+</span> <span class="nx">$locals</span><span class="p">.</span><span class="nx">$id</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div>
+
+<p>Now let's issue a rollback.  Note that you can also listen for the
+<code>History.batchBegan</code> and <code>History.batchEnded</code> events that are broadcast from the
+<code>$rootScope</code>, if you want to implement more general functionality.</p>
+
+<div class="highlight highlight-javascript"><pre><span class="kd">var</span> <span class="nx">transaction</span> <span class="o">=</span> <span class="nx">w</span><span class="p">.</span><span class="nx">transaction</span><span class="p">;</span>
+<span class="nx">History</span><span class="p">.</span><span class="nx">rollback</span><span class="p">(</span><span class="nx">transaction</span><span class="p">);</span>
+</pre></div>
+
+<p>Let's see what we ended up with by viewing some assertions:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">Q</span><span class="p">.</span><span class="nx">deepEqual</span><span class="p">(</span><span class="nx">scope</span><span class="p">.</span><span class="nx">foo</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">],</span> <span class="s1">'foo is again [4,5,6]'</span><span class="p">);</span>
+<span class="nx">Q</span><span class="p">.</span><span class="nx">equal</span><span class="p">(</span><span class="nx">scope</span><span class="p">.</span><span class="nx">bar</span><span class="p">,</span> <span class="s1">'baz'</span><span class="p">,</span> <span class="s1">'bar is again baz'</span><span class="p">);</span>
+<span class="c1">// no change here, because we didn't watch "pigs"</span>
+<span class="nx">Q</span><span class="p">.</span><span class="nx">equal</span><span class="p">(</span><span class="nx">scope</span><span class="p">.</span><span class="nx">pigs</span><span class="p">,</span> <span class="s1">'cows'</span><span class="p">,</span> <span class="s1">'pigs is still cows (no change)'</span><span class="p">);</span>
+<span class="nx">Q</span><span class="p">.</span><span class="nx">equal</span><span class="p">(</span><span class="nx">scope</span><span class="p">.</span><span class="nx">data</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">name</span><span class="p">,</span> <span class="s1">'foo'</span><span class="p">,</span> <span class="s1">'data[0].name is again "foo"'</span><span class="p">);</span>
+<span class="nx">Q</span><span class="p">.</span><span class="nx">equal</span><span class="p">(</span><span class="nx">scope</span><span class="p">.</span><span class="nx">otherdata</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="nx">name</span><span class="p">,</span> <span class="s1">'foo'</span><span class="p">,</span> <span class="s1">'otherdata[1].name is again foo'</span><span class="p">);</span>
+
+<span class="c1">// see that you can undo further in some cases</span>
+<span class="nx">History</span><span class="p">.</span><span class="nx">undo</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">,</span> <span class="nx">scope</span><span class="p">);</span>
+<span class="nx">Q</span><span class="p">.</span><span class="nx">deepEqual</span><span class="p">(</span><span class="nx">scope</span><span class="p">.</span><span class="nx">foo</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="s1">'foo is again [1,2,3]'</span><span class="p">);</span>
+
+<span class="c1">// see you can redo again</span>
+<span class="nx">History</span><span class="p">.</span><span class="nx">redo</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">,</span> <span class="nx">scope</span><span class="p">);</span>
+<span class="nx">Q</span><span class="p">.</span><span class="nx">deepEqual</span><span class="p">(</span><span class="nx">scope</span><span class="p">.</span><span class="nx">foo</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">],</span> <span class="s1">'foo is again [4,5,6]'</span><span class="p">);</span>
+
+<span class="c1">// but also that you can't redo past the rollback.</span>
+<span class="c1">// I suppose this could change, but it would put a lot</span>
+<span class="c1">// of extra crap in the history.</span>
+<span class="nx">Q</span><span class="p">.</span><span class="nx">ok</span><span class="p">(</span><span class="o">!</span><span class="nx">History</span><span class="p">.</span><span class="nx">canRedo</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">,</span> <span class="nx">scope</span><span class="p">),</span> <span class="s1">'assert no more history'</span><span class="p">);</span>
+</pre></div>
+
+<p>This batching hasn't been tested with the "lazy" functionality mentioned earlier
+(yet), but it will certainly help you support mass changes to many variables at
+once, and be able to report those changes to the user.</p>
+
+<h2>
+<a name="internals" class="anchor" href="#internals"><span class="octicon octicon-link"></span></a>Internals</h2>
+
+<p>To debug, you can grab the stack itself by asking the service for it:</p>
+
+<div class="highlight highlight-javascript"><pre><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">History</span><span class="p">.</span><span class="nx">history</span><span class="p">);</span>
+</pre></div>
+
+<p>Properties of the <code>History</code> service include:</p>
+
+<ul>
+<li>
+<code>history</code> (the complete history stack for all of the scopes and expressions)</li>
+<li>
+<code>pointers</code> (which keeps a pointer to the index in the <code>history</code> we are at)</li>
+<li>
+<code>watches</code> (which are the actual <code>$watch</code> functions on the Scope objects)</li>
+<li>
+<code>lazyWatches</code> (which are the stored "lazy" watches if you are using them)</li>
+<li>
+<code>watchObjs</code> (which stores all <code>Watch</code> objects created)</li>
+<li>
+<code>descriptions</code> (which stores any <code>description</code> parameters passed to <code>watch()</code>)</li>
+</ul><h1>
+<a name="author" class="anchor" href="#author"><span class="octicon octicon-link"></span></a>Author</h1>
+
+<p><a href="http://boneskull.github.io">Christopher Hiller</a> at
+<a href="http://decipherinc.github.io">Decipher, Inc.</a></p>
+      </section>
+      <footer>
+        <p>Project maintained by <a href="https://github.com/boneskull">boneskull</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+              <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-39154813-2");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+  </body>
+</html>
