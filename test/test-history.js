@@ -320,9 +320,6 @@
       scope = this.scope;
     Q.raises(History.batch,
       'transaction fails when not passed a function');
-    Q.raises(function () {
-      History.batch(angular.noop);
-    }, 'transaction fails when not passed a scope');
     scope.$apply('foo = [1,2,3]');
     scope.$apply('bar = "baz"');
     scope.$apply(function () {
