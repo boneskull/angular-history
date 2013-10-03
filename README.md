@@ -47,13 +47,12 @@ and run them against [QUnit](http://qunitjs.com) in a local server on port 8000.
 API Documentation
 =================
 
-Forthcoming; this will link to http://decipherinc.github.io/angular-history/docs
-I imagine.
+[API Documentation](http://decipherinc.github.io/angular-history/docs)
 
 Demo
 ====
 
-For now, in the [API documentation](http://decipherinc.github.io/angular-history/docs).
+For now, some in the [API documentation](http://decipherinc.github.io/angular-history/docs).
 
 Usage
 =====
