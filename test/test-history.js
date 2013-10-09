@@ -142,7 +142,7 @@
     });
   });
 
-  Q.test('undoing, redoing, reverting', 24, function () {
+  Q.test('undoing, redoing, reverting', 26, function () {
     var scope = this.scope,
       History = this.History,
       _archive = this.sandbox.spy(History, '_archive'),
@@ -220,6 +220,18 @@
     });
 
     Q.equal(scope.butts, 'hands', 'reverting to a specific pointer works');
+
+    scope.$apply('hamburgers = [1, 2, 3]');
+    scope.$apply(function() {
+      History.watch('hamburgers', scope);
+    });
+    scope.$apply('hamburgers.push(4)');
+    Q.deepEqual(scope.hamburgers, [1,2,3,4], 'hamburgers is as expected');
+    scope.$apply(function() {
+      History.undo('hamburgers', scope);
+    });
+    console.log(JSON.stringify(History.history));
+    Q.deepEqual(scope.hamburgers, [1,2,3], 'hamburgers has but three');
 
   });
 
