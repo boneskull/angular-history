@@ -713,8 +713,9 @@
           i,
           exp,
           nextSibling,
-          dwid,
-          destructionQueue = [];
+          destroy,
+          child,
+          dwid;
 
         function clear(id, key) {
           if (isDefined(watches[id]) &&
@@ -738,31 +739,34 @@
         if (isString(exps)) {
           exps = [exps];
         }
-        else if (isUndefined(exps)) {
+        else if (isUndefined(exps) && isDefined(watches[id])) {
           exps = Object.keys(watches[id]);
         }
 
-        i = exps.length;
-        while (i--) {
-          exp = exps[i];
-          clear(id, exp);
-          if (isDefined(scope.$$deepWatch)) {
-            // find children.
-            dwid = scope.$$deepWatch[exp];
-            nextSibling = scope.$$childHead;
-            while (nextSibling) {
-              if (nextSibling.$$deepWatchId === dwid) {
-                destructionQueue.push(nextSibling);
+        if (isDefined(exps)) {
+          i = exps.length;
+          while (i--) {
+            destroy = false;
+            exp = exps[i];
+            clear(id, exp);
+            if (isDefined(scope.$$deepWatch)) {
+              // find children.
+              dwid = scope.$$deepWatch[exp];
+              nextSibling = scope.$$childHead;
+              while (nextSibling) {
+                if (nextSibling.$$deepWatchId === dwid) {
+                  destroy = true;
+                }
+                child = nextSibling;
+                nextSibling = nextSibling.$$nextSibling;
+                if (destroy) {
+                  child.$destroy();
+                }
               }
-              nextSibling = nextSibling.$$nextSibling;
             }
           }
         }
 
-        i = destructionQueue.length;
-        while (i--) {
-          destructionQueue[i].$destroy();
-        }
       };
 
 
@@ -1252,21 +1256,14 @@
           isDefined(history[parent.$id])) {
           _rollback(t, parent);
         }
-        childHead = t.$$childHead;
-        if (childHead) {
-          childHeadLocals = childHead.$$locals;
-          if (childHeadLocals) {
-            _rollback(childHead, childHeadLocals);
+        nextSibling = t.$$childHead;
+        while (nextSibling) {
+          nextSiblingLocals = nextSibling.$$locals;
+          if (nextSiblingLocals) {
+            _rollback(nextSibling, nextSiblingLocals);
           }
-          nextSibling = childHead;
-          while (nextSibling = nextSibling.$$nextSibling) {
-            nextSiblingLocals = nextSibling.$$locals;
-            if (nextSiblingLocals) {
-              _rollback(nextSibling, nextSiblingLocals);
-            }
-          }
+          nextSibling = nextSibling.$$nextSibling;
         }
-
         watchObjs[t.$id]._fireRollbackHandlers();
 
         $rootScope.$broadcast('History.rolledback', packets);
