@@ -616,10 +616,8 @@
             value,
             valueName,
             valuesName,
-            valuesFn,
-            values,
             id = scope.$id,
-            _clear = this._clear,
+            _clear = bind(this, this._clear),
             _initStores = this._initStores,
             _archive = bind(this, this._archive),
             createDeepWatch = function createDeepWatch(targetName, valueName,
@@ -681,8 +679,6 @@
           valueFn = $parse(valueName);
           keyName = match[3];
           valuesName = match[5];
-          valuesFn = $parse(valuesName);
-          values = valuesFn(scope);
 
           if (isUndefined(scope.$$deepWatch)) {
             scope.$$deepWatch = {};
@@ -1122,7 +1118,7 @@
        </example>
        */
       this.batch = function batch(fn, scope, description) {
-        var _clear = this._clear,
+        var _clear = bind(this, this._clear),
           _initStores = this._initStores,
           listener,
           child;
