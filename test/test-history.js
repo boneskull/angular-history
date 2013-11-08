@@ -25,7 +25,7 @@
 
     },
     teardown: function () {
-      delete this.History;
+      this.History.forget();
       this.sandbox.restore();
     }
   };
@@ -34,24 +34,28 @@
 
   Q.test('_archive', 9, function () {
     var watch,
+      History = this.History,
+      scope = this.scope,
       $broadcast = this.sandbox.stub(this.$rootScope, '$broadcast'),
       locals = {baz: 'spam'};
-    Q.ok(angular.isFunction(this.History._archive()),
+    Q.ok(angular.isFunction(History._archive()),
       '_archive returns function');
 
-    this.History.descriptions['1'] = {foo: 'bar'};
-    watch = this.History._archive('foo', 1, locals);
-    watch('foo', 'foo', this.scope);
+    History.descriptions[scope.$id] = {foo: 'bar'};
+    History.watchObjs[scope.$id] = {};
+    History.watchObjs[scope.$id].foo = new History.Watch();
+    watch = History._archive('foo', scope.$id, locals);
+    watch('foo', 'foo', scope);
 
     Q.equal($broadcast.callCount, 0,
       '$broadcast() not called when arguments are identical');
 
-    watch('derp', 'foo', this.scope);
+    watch('derp', 'foo', scope);
 
     Q.equal($broadcast.callCount, 1,
       '$broadcast() called when pointer is 1');
 
-    watch('herp', 'derp', this.scope);
+    watch('herp', 'derp', scope);
 
     Q.equal($broadcast.callCount, 2,
       '$broadcast() called when arguments differ');
@@ -64,26 +68,26 @@
       locals: locals}),
       '$broadcast called with specified args: ' + getArgs($broadcast, 1));
 
-    Q.deepEqual(this.History.history['1'].foo, ['foo', 'derp', 'herp'],
+    Q.deepEqual(History.history[scope.$id].foo, ['foo', 'derp', 'herp'],
       'history stack is as expected: ' +
-      JSON.stringify(this.History.history[1].foo));
+      JSON.stringify(History.history[scope.$id].foo));
 
-    Q.deepEqual(this.History.pointers['1'].foo, 2, 'pointer is as expected');
+    Q.deepEqual(History.pointers[scope.$id].foo, 2, 'pointer is as expected');
 
-    watch = this.History._archive('foo', 1, locals, true);
+    watch = History._archive('foo', scope.$id, locals, true);
 
     watch('blah', 'herp');
-    Q.deepEqual(this.History.history['1'].foo, ['foo', 'derp', 'herp'],
+    Q.deepEqual(History.history[scope.$id].foo, ['foo', 'derp', 'herp'],
       'history stack is as expected since we passed: ' +
-      JSON.stringify(this.History.history[1].foo));
+      JSON.stringify(History.history[scope.$id].foo));
 
     watch('blah', 'herp');
-    Q.deepEqual(this.History.history['1'].foo, ['foo', 'derp', 'herp', 'blah'],
+    Q.deepEqual(History.history[scope.$id].foo, ['foo', 'derp', 'herp', 'blah'],
       'history stack is as expected since pass expired: ' +
-      JSON.stringify(this.History.history[1].foo));
+      JSON.stringify(History.history[scope.$id].foo));
 
 
-    this.History.descriptions = {};
+    History.descriptions = {};
   });
 
   Q.test('watch', 14, function () {
@@ -263,9 +267,6 @@
         {pepperoni: []}
       ];
     });
-    scope.$on('History.archived', function () {
-      log(arguments);
-    });
 
     var w = History.batch(function () {
       scope.$apply('pizzas[0].pepperoni.push(123)');
@@ -275,7 +276,7 @@
       });
     this.$timeout.flush();
     Q.equal(scope.pizzas[0].pepperoni.length, 1, 'got pepperoni');
-    History.rollback(w.transaction);
+    History.rollback(w.scope);
 
     scope.$apply(function() {
       delete scope.pizzas;
@@ -295,7 +296,7 @@
       });
     this.$timeout.flush();
     Q.equal(scope.pizzas[0].pepperoni.length, 1, 'got pepperoni');
-    History.rollback(w.transaction);
+    History.rollback(w.scope);
 
     scope.$apply(function() {
       scope.pizzas.push({
@@ -311,7 +312,7 @@
       });
     this.$timeout.flush();
     Q.equal(scope.pizzas[1].pepperoni.length, 2, 'got lots pepperoni');
-    History.rollback(w.transaction);
+    History.rollback(w.scope);
 
 
   });
@@ -409,6 +410,23 @@
         'name changed to {{d.name}}');
     });
     scope.$apply('data[0].name = "fred"');
+
+    History.forget();
+    scope.$apply();
+
+    //TODO: for new feature wherein you can watch all members of all items of an array/object
+//
+//    var bigWatchStub = this.sandbox.stub();
+//    History.deepWatch('d for d in data', scope)
+//      .addChangeHandler('myChangeHandler', function($expression, $locals) {
+//        History.undo($expression, $locals);
+//        scope.$apply();
+//      })
+//      .addUndoHandler('myUndoHandler', bigWatchStub);
+//
+//    scope.$apply('data[0].name = "barney"');
+//
+//    Q.equal(bigWatchStub.callCount, 1, 'assert undo handler called');
 
   });
 
@@ -585,11 +603,11 @@
       .removeRedoHandler('redoSpy')
       .removeRevertHandler('revertSpy');
 
-    Q.equal(Object.keys(w._changeHandlers), 0,
+    Q.equal(Object.keys(w.$changeHandlers), 0,
       'we removed the change handlers');
-    Q.equal(Object.keys(w._undoHandlers), 0, 'we removed the undo handlers');
-    Q.equal(Object.keys(w._redoHandlers), 0, 'we removed the redo handlers');
-    Q.equal(Object.keys(w._revertHandlers), 0,
+    Q.equal(Object.keys(w.$undoHandlers), 0, 'we removed the undo handlers');
+    Q.equal(Object.keys(w.$redoHandlers), 0, 'we removed the redo handlers');
+    Q.equal(Object.keys(w.$revertHandlers), 0,
       'we removed the revert handlers');
 
     History.deepWatch('d.name for d in data', scope)
@@ -606,11 +624,11 @@
 
     scope.$apply();
 
-    History.rollback(w.transaction);
+    History.rollback(w.scope);
 
     w.removeRollbackHandler('rollbackSpy');
 
-    Q.equal(Object.keys(w._rollbackHandlers), 0,
+    Q.equal(Object.keys(w.$rollbackHandlers), 0,
       'we removed the rollback handlers');
   });
 })();
