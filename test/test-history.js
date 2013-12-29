@@ -326,18 +326,19 @@
     History.watch(['cows', 'pigs'], scope);
     scope.$apply('cows = "deer"');
     scope.$apply('pigs = "elk"');
-    History.forget(scope, ['cows', 'pigs']);
-    Q.ok(angular.isUndefined(History.history[scope.$id]['cows']),
+    History.forget(scope, 'cows');
+    Q.ok(angular.isUndefined(History.history[scope.$id].cows),
       'history undefined for cows');
-    Q.ok(angular.isUndefined(History.history[scope.$id]['pigs']),
-      'history undefined for pigs');
-    Q.ok(angular.isUndefined(History.pointers[scope.$id]['cows']),
+    Q.ok(angular.isUndefined(History.pointers[scope.$id].cows),
       'pointers undefined for cows');
-    Q.ok(angular.isUndefined(History.pointers[scope.$id]['pigs']),
-      'pointers undefined for pigs');
-    Q.ok(angular.isUndefined(History.watches[scope.$id]['cows']),
+    Q.ok(angular.isUndefined(History.watches[scope.$id].cows),
       'watches undefined for cows');
-    Q.ok(angular.isUndefined(History.watches[scope.$id]['pigs']),
+    History.forget(scope, 'pigs');
+    Q.ok(angular.isUndefined(History.history[scope.$id]),
+      'history undefined for pigs');
+    Q.ok(angular.isUndefined(History.pointers[scope.$id]),
+      'pointers undefined for pigs');
+    Q.ok(angular.isUndefined(History.watches[scope.$id]),
       'watches undefined for pigs');
   });
 

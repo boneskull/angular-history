@@ -383,6 +383,14 @@
           this._fireHandlers('$rollbackHandlers');
         };
 
+      /**
+       * Decline to broadcast an event for this Watch.
+       * @param {string} eventName Name of event to avoid.  i.e. "History.archived"
+       * @param {Function=} callback Optional callback
+       * @param {Object=} resolve Optional mapping of parameters to invoke
+       * the callback with.
+       * @returns {Watch} this Watch object
+       */
       Watch.prototype.ignoreEvent =
         function ignoreEvent(eventName, callback, resolve) {
           // special case; we cannot ignore History.archived within a Watch obj
@@ -408,6 +416,12 @@
           return this;
         };
 
+      /**
+       * Broadcasts an event, taking ignored events into account.
+       * @param {string} eventName Event to broadcast
+       * @param {*} data Some data to pass
+       * @private
+       */
       Watch.prototype._broadcast = function _broadcast(eventName, data) {
         var ignore = this.$ignores[eventName];
         if (!ignore ||
@@ -417,6 +431,9 @@
         }
       };
 
+      /**
+       * Undoes last change against this watch object's target.
+       */
       Watch.prototype.undo = function undo() {
         if (this.exp === null) {
           $log.warn("attempt to undo a batch; use rollback() instead");
@@ -425,6 +442,9 @@
         service.undo(this.exp, this.scope);
       };
 
+      /**
+       * Redoes last undo against this watch object's target.
+       */
       Watch.prototype.redo = function redo() {
         if (this.exp === null) {
           $log.warn("attempt to redo a batch; just execute the batch callback again");
@@ -432,18 +452,30 @@
         service.redo(this.exp, this.scope);
       };
 
-      Watch.prototype.revert = function revert() {
+      /**
+       * Reverts this target's watch object.
+       * @param {number=0} pointer Pointer to revert to
+       */
+      Watch.prototype.revert = function revert(pointer) {
         if (this.exp === null) {
           $log.warn("attempt to revert a batch; use rollback() instead");
         }
-        service.redo(this.exp, this.scope);
+        service.revert(this.exp, this.scope, pointer);
       };
 
+      /**
+       * Whether or not you may undo this watch object's target
+       * @returns {boolean}
+       */
       Watch.prototype.canUndo = function canUndo() {
         return this.exp === null ? false :
                service.canUndo(this.exp, this.scope);
       };
 
+      /**
+       * Whether or not you may redo this watch object's target
+       * @returns {boolean}
+       */
       Watch.prototype.canRedo = function canRedo() {
         return this.exp === null ? false :
                service.canRedo(this.exp, this.scope);
@@ -554,7 +586,7 @@
        * @methodOf decipher.history.service:History
        * @description
        * Register some expression(s) for watching.
-       * @param {(string|string[])} exps Array of expressions or one expression as a string
+       * @param {string|string[]} exps Array of expressions or one expression as a string
        * @param {Scope=} scope Scope; defaults to `$rootScope`
        * @param {string=} description Description of this change
        * @param {Object=} lazyOptions Options for lazy loading.  Only valid
@@ -791,39 +823,48 @@
         var id = scope.$id,
           i,
           nextSibling,
-          exp;
+          exp,
+          clear = function clear(id, key) {
+            var zap = function zap(what) {
+              if (isDefined(what[id][key])) {
+                delete what[id][key];
+                if (Object.keys(what[id]).length === 0) {
+                  delete what[id];
+                }
+              }
+            };
 
-        function clear(id, key) {
-          if (isDefined(watches[id]) &&
-            isFunction(watches[id][key])) {
-            watches[id][key]();
-          }
-          if (isDefined(watches[id])) {
-            delete watches[id][key];
-          }
-          if (isDefined(history[id])) {
-            delete history[id][key];
-          }
-          if (isDefined(pointers[id])) {
-            delete pointers[id][key];
-          }
-          if (isDefined(lazyWatches[id])) {
-            delete lazyWatches[id][key];
-          }
-        }
-
-        function clearAll(id) {
-          forEach(watches[id], function (watch) {
-            if (isFunction(watch)) {
-              watch();
+            if (isDefined(watches[id]) &&
+              isFunction(watches[id][key])) {
+              watches[id][key]();
             }
-          });
-          delete watches[id];
-          delete history[id];
-          delete pointers[id];
-          delete lazyWatches[id];
-          delete watchObjs[id];
-        }
+            if (isDefined(watches[id])) {
+              zap(watches);
+            }
+            if (isDefined(watchObjs[id])) {
+              zap(watchObjs);
+            }
+            if (isDefined(history[id])) {
+              zap(history);
+            }
+            if (isDefined(pointers[id])) {
+              zap(pointers);
+            }
+            if (isDefined(lazyWatches[id])) {
+              zap(lazyWatches);
+            }
+          },
+
+          clearAll = function clearAll(id) {
+            forEach(watches[id], function (watch) {
+              return isFunction(watch) && watch();
+            });
+            delete watches[id];
+            delete history[id];
+            delete pointers[id];
+            delete lazyWatches[id];
+            delete watchObjs[id];
+          };
 
         if (isString(exps)) {
           exps = [exps];
@@ -1459,6 +1500,14 @@
        */
       this.watchObjs = watchObjs;
 
+      /**
+       * @ngdoc property
+       * @name decipher.history.service:History#Watch
+       * @propertyOf decipher.history.service:History
+       * @description
+       * Here's the Watch prototype for you to play with.
+       * @type {Watch}
+       */
       this.Watch = Watch;
     });
 })();
