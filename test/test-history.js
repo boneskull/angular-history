@@ -604,11 +604,11 @@
       .removeRedoHandler('redoSpy')
       .removeRevertHandler('revertSpy');
 
-    Q.equal(Object.keys(w.$changeHandlers), 0,
+    Q.equal(Object.keys(w.$handlers.$change), 0,
       'we removed the change handlers');
-    Q.equal(Object.keys(w.$undoHandlers), 0, 'we removed the undo handlers');
-    Q.equal(Object.keys(w.$redoHandlers), 0, 'we removed the redo handlers');
-    Q.equal(Object.keys(w.$revertHandlers), 0,
+    Q.equal(Object.keys(w.$handlers.$undo), 0, 'we removed the undo ');
+    Q.equal(Object.keys(w.$handlers.$redo), 0, 'we removed the redo ');
+    Q.equal(Object.keys(w.$handlers.$revert), 0,
       'we removed the revert handlers');
 
     History.deepWatch('d.name for d in data', scope)
@@ -629,7 +629,7 @@
 
     w.removeRollbackHandler('rollbackSpy');
 
-    Q.equal(Object.keys(w.$rollbackHandlers), 0,
+    Q.equal(Object.keys(w.$handlers.$rollback), 0,
       'we removed the rollback handlers');
   });
 })();
