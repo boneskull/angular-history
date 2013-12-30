@@ -3,3 +3,6 @@ node_js:
   - "0.10"
   - "0.8"
 
+notifications:
+  webhooks: https://decipher.slack.com/services/hooks/travis?token=HVwq2t51QSNvSX92axsm0gSL
+
