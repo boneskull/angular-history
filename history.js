@@ -23,6 +23,53 @@
     copy = angular.copy,
     bind = angular.bind;
 
+  /**
+   * Polyfill for Object.keys
+   *
+   * @see: https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/Object/keys
+   */
+  if (!Object.keys) {
+    Object.keys = (function () {
+      var hasOwnProperty = Object.prototype.hasOwnProperty,
+        hasDontEnumBug = !({toString: null}).propertyIsEnumerable('toString'),
+        dontEnums = [
+          'toString',
+          'toLocaleString',
+          'valueOf',
+          'hasOwnProperty',
+          'isPrototypeOf',
+          'propertyIsEnumerable',
+          'constructor'
+        ],
+        dontEnumsLength = dontEnums.length;
+
+      return function (obj) {
+        if (typeof obj !== 'object' && typeof obj !== 'function' ||
+          obj === null) {
+          throw new TypeError('Object.keys called on non-object');
+        }
+
+        var result = [];
+
+        for (var prop in obj) {
+          if (hasOwnProperty.call(obj, prop)) {
+            result.push(prop);
+          }
+        }
+
+        if (hasDontEnumBug) {
+          for (var i = 0; i < dontEnumsLength; i++) {
+            if (hasOwnProperty.call(obj,
+              dontEnums[i])) {
+              result.push(dontEnums[i]);
+            }
+          }
+        }
+        return result;
+      };
+    })();
+  }
+
   // stub out lazyBind if we don't have it.
   try {
     angular.module('lazyBind');
@@ -48,6 +95,7 @@
         watchObjs = {},
         lazyWatches = {},
         descriptions = {},
+      // TODO: async safe?
         batching = false, // whether or not we are currently in a batch
         deepWatchId = 0; // incrementing ID of deep {@link decipher.history.object:Watch Watch instance}s
 
@@ -63,17 +111,21 @@
        * Each function return the `Watch` instance, so you can chain the calls.
        *
        * See the docs for {@link decipher.history.service:History#deepWatch History.deepWatch()} for an example of using these functions.
+       *
+       * @todo ability to remove all handlers at once, or all handlers of a certain type
        */
       var Watch = function Watch(exp, scope) {
         this.exp = exp;
         this.scope = scope || $rootScope;
 
-        // TODO: consider stuffing all of this into one nested obj
-        this.$changeHandlers = {};
-        this.$undoHandlers = {};
-        this.$rollbackHandlers = {};
-        this.$redoHandlers = {};
-        this.$revertHandlers = {};
+        this.$handlers = {
+          $change : {},
+          $undo : {},
+          $rollback : {},
+          $redo : {},
+          $revert : {},
+        };
+
         this.$ignores = {};
       };
 
@@ -90,9 +142,9 @@
       Watch.prototype._addHandler =
         function _addHandler(where, name, fn, resolve) {
           if (!where || !name || !fn) {
-            throw 'invalid parameters to _addHandler()';
+            throw new Error('invalid parameters to _addHandler()');
           }
-          this[where][name] = {
+          this.$handlers[where][name] = {
             fn: fn,
             resolve: resolve || {}
           };
@@ -109,9 +161,9 @@
        */
       Watch.prototype._removeHandler = function (where, name) {
         if (!name) {
-          throw 'invalid parameters to _removeHandler()';
+          throw new Error('invalid parameters to _removeHandler()');
         }
-        delete this[where][name];
+        delete this.$handlers[where][name];
         return this;
       };
 
@@ -131,9 +183,9 @@
       Watch.prototype.addChangeHandler =
         function addChangeHandler(name, fn, resolve) {
           if (!name || !fn) {
-            throw 'invalid parameters';
+            throw new Error('invalid parameters');
           }
-          return this._addHandler('$changeHandlers', name, fn, resolve);
+          return this._addHandler('$change', name, fn, resolve);
         };
       /**
        * @ngdoc function
@@ -151,9 +203,9 @@
       Watch.prototype.addUndoHandler =
         function addUndoHandler(name, fn, resolve) {
           if (!name || !fn) {
-            throw 'invalid parameters';
+            throw new Error('invalid parameters');
           }
-          return this._addHandler('$undoHandlers', name, fn, resolve);
+          return this._addHandler('$undo', name, fn, resolve);
         };
       /**
        * @ngdoc function
@@ -171,9 +223,9 @@
       Watch.prototype.addRedoHandler =
         function addRedoHandler(name, fn, resolve) {
           if (!name || !fn) {
-            throw 'invalid parameters';
+            throw new Error('invalid parameters');
           }
-          return this._addHandler('$redoHandlers', name, fn, resolve);
+          return this._addHandler('$redo', name, fn, resolve);
         };
       /**
        * @ngdoc function
@@ -191,9 +243,9 @@
       Watch.prototype.addRevertHandler =
         function addRevertHandler(name, fn, resolve) {
           if (!name || !fn) {
-            throw 'invalid parameters';
+            throw new Error('invalid parameters');
           }
-          return this._addHandler('$revertHandlers', name, fn, resolve);
+          return this._addHandler('$revert', name, fn, resolve);
         };
       /**
        * @ngdoc function
@@ -211,9 +263,9 @@
       Watch.prototype.addRollbackHandler =
         function addRollbackHandler(name, fn, resolve) {
           if (!name || !fn) {
-            throw 'invalid parameters';
+            throw new Error('invalid parameters');
           }
-          return this._addHandler('$rollbackHandlers', name, fn, resolve);
+          return this._addHandler('$rollback', name, fn, resolve);
         };
 
       /**
@@ -228,9 +280,9 @@
        */
       Watch.prototype.removeRevertHandler = function removeRevertHandler(name) {
         if (!name) {
-          throw 'invalid parameters';
+          throw new Error('invalid parameters');
         }
-        return this._removeHandler('$revertHandlers', name);
+        return this._removeHandler('$revert', name);
       };
       /**
        * @ngdoc function
@@ -244,9 +296,9 @@
        */
       Watch.prototype.removeChangeHandler = function removeChangeHandler(name) {
         if (!name) {
-          throw 'invalid parameters';
+          throw new Error('invalid parameters');
         }
-        return this._removeHandler('$changeHandlers', name);
+        return this._removeHandler('$change', name);
       };
       /**
        * @ngdoc function
@@ -260,9 +312,9 @@
        */
       Watch.prototype.removeUndoHandler = function removeUndoHandler(name) {
         if (!name) {
-          throw 'invalid parameters';
+          throw new Error('invalid parameters');
         }
-        return this._removeHandler('$undoHandlers', name);
+        return this._removeHandler('$undo', name);
       };
 
       /**
@@ -277,7 +329,7 @@
        */
       Watch.prototype.removeRollbackHandler =
         function removeRollbackHandler(name) {
-          return this._removeHandler('$rollbackHandlers', name);
+          return this._removeHandler('$rollback', name);
         };
 
       /**
@@ -293,9 +345,9 @@
       Watch.prototype.removeRedoHandler =
         function removeRedoHandler(name) {
           if (!name) {
-            throw 'invalid parameters';
+            throw new Error('invalid parameters');
           }
-          return this._removeHandler('$redoHandlers', name);
+          return this._removeHandler('$redo', name);
         };
 
       /**
@@ -309,7 +361,7 @@
         function _fireHandlers(where, exp, scope) {
           var hasScope = isDefined(scope),
             localScope = this.scope, that = this;
-          forEach(this[where], function (handler) {
+          forEach(this.$handlers[where], function (handler) {
             var locals = {
               $locals: localScope
             };
@@ -338,7 +390,7 @@
        */
       Watch.prototype._fireChangeHandlers =
         function _fireChangeHandlers(exp, scope) {
-          this._fireHandlers('$changeHandlers', exp, scope);
+          this._fireHandlers('$change', exp, scope);
         };
 
       /**
@@ -349,7 +401,7 @@
        */
       Watch.prototype._fireUndoHandlers =
         function _fireUndoHandlers(exp, scope) {
-          this._fireHandlers('$undoHandlers', exp, scope);
+          this._fireHandlers('$undo', exp, scope);
         };
 
       /**
@@ -360,7 +412,7 @@
        */
       Watch.prototype._fireRedoHandlers =
         function _fireRedoHandlers(exp, scope) {
-          this._fireHandlers('$redoHandlers', exp, scope);
+          this._fireHandlers('$redo', exp, scope);
         };
 
       /**
@@ -371,7 +423,7 @@
        */
       Watch.prototype._fireRevertHandlers =
         function _fireRevertHandlers(exp, scope) {
-          this._fireHandlers('$revertHandlers', exp, scope);
+          this._fireHandlers('$revert', exp, scope);
         };
 
       /**
@@ -380,7 +432,7 @@
        */
       Watch.prototype._fireRollbackHandlers =
         function _fireRollbackHandlers() {
-          this._fireHandlers('$rollbackHandlers');
+          this._fireHandlers('$rollback');
         };
 
       /**
@@ -616,7 +668,7 @@
        */
       this.watch = function watch(exps, scope, description, lazyOptions) {
         if (isUndefined(exps)) {
-          throw 'expression required';
+          throw new Error('expression required');
         }
         scope = scope || $rootScope;
         description = description || '';
@@ -769,7 +821,7 @@
                   watchObjs[id][targetName] = watchObj;
 
                   locals.$on('$destroy', function () {
-                    _clear(locals);
+                    _clear(scope);
                   });
 
                 });
@@ -870,54 +922,6 @@
           exps = [exps];
         }
         else if (isUndefined(exps) && isDefined(watches[id])) {
-
-          /**
-           * Polyfill for Object.keys
-           *
-           * @see: https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/Object/keys
-           */
-          if (!Object.keys) {
-            Object.keys = (function () {
-              var hasOwnProperty = Object.prototype.hasOwnProperty,
-                hasDontEnumBug = !({toString: null}).propertyIsEnumerable('toString'),
-                dontEnums = [
-                  'toString',
-                  'toLocaleString',
-                  'valueOf',
-                  'hasOwnProperty',
-                  'isPrototypeOf',
-                  'propertyIsEnumerable',
-                  'constructor'
-                ],
-                dontEnumsLength = dontEnums.length;
-
-              return function (obj) {
-                if (typeof obj !== 'object' && typeof obj !== 'function' ||
-                  obj === null) {
-                  throw new TypeError('Object.keys called on non-object');
-                }
-
-                var result = [];
-
-                for (var prop in obj) {
-                  if (hasOwnProperty.call(obj, prop)) {
-                    result.push(prop);
-                  }
-                }
-
-                if (hasDontEnumBug) {
-                  for (var i = 0; i < dontEnumsLength; i++) {
-                    if (hasOwnProperty.call(obj,
-                      dontEnums[i])) {
-                      result.push(dontEnums[i]);
-                    }
-                  }
-                }
-                return result;
-              };
-            })();
-          }
-
           exps = Object.keys(watches[id]);
         }
 
@@ -932,7 +936,7 @@
         }
         nextSibling = scope.$$childHead;
         while (nextSibling) {
-          this._clear(nextSibling.$id, exp);
+          this._clear(nextSibling, exp);
           nextSibling = nextSibling.$$nextSibling;
         }
       };
@@ -998,7 +1002,7 @@
       this.undo = function undo(exp, scope) {
         scope = scope || $rootScope;
         if (isUndefined(exp)) {
-          throw 'expression required';
+          throw new Error('expression required');
         }
         var id = scope.$id,
           scopeHistory = history[id],
@@ -1296,7 +1300,7 @@
           child;
         scope = scope || $rootScope;
         if (!isFunction(fn)) {
-          throw 'transaction requires a function';
+          throw new Error('transaction requires a function');
         }
 
         child = scope.$new();
@@ -1370,7 +1374,7 @@
           watchObj,
           nextSiblingLocals;
         if (!t || !isObject(t)) {
-          throw 'must pass a scope to rollback';
+          throw new Error('must pass a scope to rollback');
         }
 
         function _rollback(scope, comparisonScope) {

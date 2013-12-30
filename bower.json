@@ -1,6 +1,6 @@
 {
   "name": "angular-history",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "main": "history.js",
   "dependencies": {},
   "devDependencies": {
