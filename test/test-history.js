@@ -632,4 +632,32 @@
     Q.equal(Object.keys(w.$handlers.$rollback), 0,
       'we removed the rollback handlers');
   });
+  
+  Q.test('Continue correctly after revert (or undo)', 4, function () {
+    var scope = this.scope,
+      History = this.History;
+
+    scope.foo1 = {};
+    scope.foo2 = {bar: 'baz'};
+    scope.foo = scope.foo1;
+
+    History.watch('foo', scope);
+    scope.$apply();
+    scope.$apply('foo = foo2');
+
+    Q.deepEqual(History.history[scope.$id].foo, [{}, scope.foo2],
+      'stack is as expected');
+
+    History.undo('foo', scope);
+    scope.$apply();
+
+    Q.deepEqual(scope.foo, {}, 'foo is once again an empty object');
+    Q.ok(scope.foo !== scope.foo1, 'foo is empty, but is NOT foo1');
+
+    // modify the "foo" we received from the service.
+    scope.$apply('foo.bar = "spam"');
+
+    Q.deepEqual(History.history[scope.$id].foo, [{}, {bar: 'spam'}],
+      'modification of foo does not affect stack');
+  });
 })();
